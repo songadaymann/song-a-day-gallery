@@ -534,7 +534,7 @@
         });
 
         // Load coordinate map data for future use
-        fetch('data/coordinates.json')
+        fetch('data/coordinate_maps.json')
             .then(response => response.json())
             .then(coordinates => {
                 window.songCoordinates = coordinates;
@@ -546,7 +546,7 @@
         let songData = null;
 
         // Load song data
-        fetch('songaday_clean.jsonl')
+        fetch('data/songaday_clean.jsonl')
             .then(response => response.text())
             .then(text => {
                 songData = text.trim().split('\n').map(line => JSON.parse(line));
