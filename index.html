@@ -534,7 +534,7 @@
         });
 
         // Load coordinate map data for future use
-        fetch('coordinates.json')
+        fetch('data/coordinates.json')
             .then(response => response.json())
             .then(coordinates => {
                 window.songCoordinates = coordinates;
