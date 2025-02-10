@@ -583,10 +583,18 @@
         }
 
         function displaySongDetails(songId) {
-            if (!songData) return;
+            console.log('displaySongDetails called with ID:', songId);
+            if (!songData) {
+                console.log('songData is not loaded yet');
+                return;
+            }
             
             const song = songData.find(s => s.token_id === songId);
-            if (!song) return;
+            console.log('Found song:', song);
+            if (!song) {
+                console.log('No song found with token_id:', songId);
+                return;
+            }
 
             const modalContent = modal.querySelector('.modal-content');
             modalContent.querySelector('.song-title').textContent = song.name;
@@ -643,10 +651,17 @@
 
         // Add click handler to viewer
         viewer.addHandler('canvas-click', function(event) {
-            if (!event.quick) return;
+            console.log('Canvas clicked', event);
+            if (!event.quick) {
+                console.log('Not a quick click, returning');
+                return;
+            }
             
             const song = getSongFromPoint(event.position);
+            console.log('Song from point:', song);
             if (song) {
+                console.log('Attempting to display song details for ID:', song.id);
+                console.log('Current songData loaded:', !!songData);
                 displaySongDetails(song.id);
             }
         });
