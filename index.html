@@ -291,6 +291,19 @@
         .close-button:hover {
             background: rgba(255, 255, 255, 0.2);
         }
+        .search-results-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .search-results-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+        }
+        .search-results-list li:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
         /* ... other existing modal styles (.video-container, .song-title, etc.) ... */
         .video-container {
             position: relative;
@@ -444,6 +457,15 @@
             <p class="song-description"></p>
             <div class="attributes-grid"></div>
             <div class="external-links"></div>
+        </div>
+    </div>
+
+    <!-- Search Results Modal -->
+    <div id="searchModal" class="modal">
+        <div class="modal-content">
+            <button class="close-button">&times;</button>
+            <h2 class="search-results-title"></h2>
+            <ul class="search-results-list"></ul>
         </div>
     </div>
 

@@ -392,7 +392,12 @@ import * as etherscanApi from './api/etherscan.js';
     }
 
     if (searchInput) {
-        initSearchBar(searchInput, algoliaIndex, id => displaySongDetails(id));
+        initSearchBar(
+            searchInput,
+            algoliaIndex,
+            id => displaySongDetails(id),
+            q => openSearchResults(q)
+        );
     }
 
     function getYouTubeVideoId(url) {
@@ -473,6 +478,36 @@ import * as etherscanApi from './api/etherscan.js';
         } catch (error) {
             console.error("Error fetching song details from Algolia:", error);
             // Optionally, display an error message to the user in the modal
+        }
+    }
+
+    async function openSearchResults(query) {
+        if (!query) return;
+        try {
+            const { hits } = await algoliaIndex.search(query, { hitsPerPage: 50 });
+            const modalEl = document.getElementById('searchModal');
+            const closeBtn = modalEl.querySelector('.close-button');
+            const titleEl = modalEl.querySelector('.search-results-title');
+            const listEl = modalEl.querySelector('.search-results-list');
+            listEl.innerHTML = '';
+            titleEl.textContent = `Results for "${query}"`;
+            hits.forEach(hit => {
+                const li = document.createElement('li');
+                const label = hit.name || `Song #${hit.token_id}`;
+                li.textContent = label;
+                li.addEventListener('click', () => {
+                    modalEl.style.display = 'none';
+                    displaySongDetails(parseInt(hit.objectID, 10));
+                });
+                listEl.appendChild(li);
+            });
+            modalEl.style.display = 'block';
+            closeBtn.onclick = () => (modalEl.style.display = 'none');
+            modalEl.addEventListener('click', e => {
+                if (e.target === modalEl) modalEl.style.display = 'none';
+            });
+        } catch (err) {
+            console.error('Error performing search', err);
         }
     }
 
@@ -627,10 +662,15 @@ import * as etherscanApi from './api/etherscan.js';
                 options.className = 'filter-options';
                 options.style.display = 'none';
 
-                // Sort facet values by count (descending) then by name (ascending)
-                const sortedValues = Object.entries(facetValues)
-                    .sort(([, aCount], [, bCount]) => bCount - aCount)
-                    .sort(([aName], [bName]) => aName.localeCompare(bName));
+                // Sort facet values by count (descending) then name (ascending)
+                const sortedValues = Object.entries(facetValues).sort(
+                    ([aName, aCount], [bName, bCount]) => {
+                        if (bCount === aCount) {
+                            return aName.localeCompare(bName);
+                        }
+                        return bCount - aCount;
+                    }
+                );
 
                 sortedValues.forEach(([value, count]) => {
                     const option = document.createElement('div');
