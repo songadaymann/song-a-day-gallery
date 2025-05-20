@@ -1,4 +1,4 @@
-export function initSearchBar(inputEl, algoliaIndex, onSelect) {
+export function initSearchBar(inputEl, algoliaIndex, onSelect, onSearch) {
   const container = document.createElement('div');
   container.className = 'search-results';
   inputEl.parentNode.style.position = 'relative';
@@ -32,8 +32,15 @@ export function initSearchBar(inputEl, algoliaIndex, onSelect) {
 
   inputEl.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
-      const first = container.querySelector('.search-result');
-      if (first) first.click();
+      e.preventDefault();
+      const q = inputEl.value.trim();
+      container.innerHTML = '';
+      if (onSearch) {
+        onSearch(q);
+      } else {
+        const first = container.querySelector('.search-result');
+        if (first) first.click();
+      }
     }
   });
 }
