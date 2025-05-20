@@ -1,15 +1,18 @@
 import { createButton } from './ui/createButton.js';
-import algoliasearch from 'algoliasearch';
-import * as openSeaApi from './opensea-api.js';
-import * as etherscanApi from './etherscan-api.js';
+import { initAlgoliaIndex } from './api/algolia.js';
+import * as openSeaApi from './api/opensea.js';
+import * as etherscanApi from './api/etherscan.js';
 
 (function () {
     // Algolia Client Initialization
     const ALGOLIA_APP_ID = '8I4QUDIYPJ';
     const ALGOLIA_SEARCH_KEY = '0b78c3d3ea56c86c7d766052bad49abe'; // Search-only key
     const ALGOLIA_INDEX_NAME = 'songs';
-    const algoliaClient = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY);
-    const algoliaIndex = algoliaClient.initIndex(ALGOLIA_INDEX_NAME);
+    const algoliaIndex = initAlgoliaIndex(
+        ALGOLIA_APP_ID,
+        ALGOLIA_SEARCH_KEY,
+        ALGOLIA_INDEX_NAME
+    );
 
     // OpenSea / Etherscan Configuration
     const OPENSEA_API_KEY = import.meta.env.VITE_OPENSEA_API_KEY;
