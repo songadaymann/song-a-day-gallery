@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Song A Day Gallery</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Text&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0;
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #333; /* Added a background for better visibility of layout */
+            color: #fff;
+            display: flex; /* Use flexbox for overall layout */
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden; /* Prevent body scrollbars */
+        }
+
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            height: 100%;
+        }
+
+        #top-bar { /* Renamed from #header */
+            height: 60px;
+            background: #1a1a1a; /* Darker background */
+            display: flex;
+            align-items: center;
+            justify-content: space-between; /* Adjust for new items */
+            padding: 0 20px;
+            box-sizing: border-box;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            flex-shrink: 0; /* Prevent shrinking */
+            z-index: 100;
+        }
+
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .top-bar-logo {
+            /* Placeholder for a logo if needed */
+            font-weight: bold;
+            font-size: 20px;
+        }
+         .top-bar-search input {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+
+        .top-bar-nav {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-button {
+            color: white;
+            background: none;
+            border: 1px solid transparent; /* For consistent height with "For Sale" */
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .nav-button:hover, .nav-button.active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .nav-button.for-sale {
+            background: #4CAF50; /* Green background for "For Sale" */
+            border-color: #4CAF50;
+        }
+        .nav-button.for-sale:hover {
+            background: #45a049;
+        }
+
+
+        #main-content-area {
+            display: flex;
+            flex-grow: 1;
+            overflow: hidden; /* Prevent this area from causing page scroll */
+        }
+
+        .sidebar {
+            width: 300px; /* Default width, can be adjusted */
+            background: #111; /* Darker background for sidebars */
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            transition: width 0.3s ease;
+            flex-shrink: 0; /* Prevent shrinking */
+            z-index: 50;
+        }
+        
+        #left-sidebar {
+            /* Initially hidden or very narrow, controlled by JS/CSS classes */
+            width: 0;
+            padding: 0;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+        #left-sidebar.visible {
+            width: 320px; /* Example visible width */
+            padding: 20px;
+        }
+
+        /* Styles for the new left sidebar header */
+        .left-sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .left-sidebar-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .left-sidebar-close-button {
+            font-size: 24px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: #fff;
+        }
+        .left-sidebar-content {
+            /* Styles for the content area if needed */
+        }
+
+        #viewer-container {
+            flex-grow: 1;
+            position: relative; /* Needed for OpenSeadragon */
+            background: #000; /* Default OSD background */
+        }
+        
+        #viewer { /* Adjusted from being full width/height */
+            width: 100%;
+            height: 100%; 
+            background: #000; /* Ensure viewer itself has a background */
+        }
+
+        #right-sidebar { /* Was #filterModal */
+            border-left: 1px solid rgba(255,255,255,0.1);
+             width: 0; /* Initially hidden */
+            padding: 0;
+        }
+        #right-sidebar.visible {
+            width: 320px; /* Example visible width */
+            padding: 20px;
+        }
+        
+        /* Styles for filter modal content, adapted for sidebar */
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .filter-header-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .filter-close-button { /* New class for the X button */
+            font-size: 24px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: #fff;
+        }
+        /* .filter-content will be the main scrollable area within right-sidebar */
+        /* .filter-section, .filter-option, etc. styles should still mostly apply */
+
+
+        #bottom-bar {
+            height: 50px;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-sizing: border-box;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            flex-shrink: 0; /* Prevent shrinking */
+            z-index: 100;
+        }
+        
+        #bottom-bar-logo {
+            /* Placeholder for logo/branding */
+            font-size: 14px;
+        }
+
+        #osd-controls-container { /* Target for OSD controls */
+            display: flex;
+            gap: 4px;
+        }
+
+        /* Keep existing .highlight-box, .gif-overlay, .gif-container as they are viewer-related */
+        .highlight-box {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1002;
+            display: none;
+            width: 100%;
+            height: 100%;
+            border: none;
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.1);
+            transition: none;
+        }
+        .gif-overlay {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1001;
+            display: none;
+            transform-origin: top left;
+            will-change: transform;
+        }
+        .gif-overlay img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        #gif-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        /* Styles for the song detail modal - should remain largely unchanged */
+        .modal { /* This is for the song detail modal, NOT the filter modal anymore */
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000; /* Ensure it's on top of everything */
+        }
+        .modal-content {
+            position: relative;
+            width: 90%;
+            max-width: 800px;
+            margin: 40px auto;
+            background: #111; /* Darker than sidebars for contrast */
+            color: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .close-button { /* For song detail modal */
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            padding: 8px; /* Adjusted padding */
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+        .close-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        /* ... other existing modal styles (.video-container, .song-title, etc.) ... */
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            margin: 20px 0;
+        }
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .song-title {
+            font-size: 32px;
+            font-weight: normal;
+            margin: 0 0 4px 0;
+            line-height: 1.2;
+            font-family: 'DM Serif Text', serif;
+        }
+        .song-number {
+            font-size: 16px;
+            color: #888;
+            margin-bottom: 16px;
+        }
+        .song-description {
+            font-size: 16px;
+            margin-bottom: 24px;
+            color: #ccc;
+            line-height: 1.4;
+        }
+        .attributes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .attribute-item {
+            background: rgba(255, 255, 255, 0.05); /* Slightly more subtle */
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .attribute-label {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+        .attribute-value {
+            font-size: 16px;
+            color: #fff;
+        }
+        .external-links {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .external-link {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #333;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .external-link:hover {
+            background: #444;
+        }
+
+        /* Existing filter option styles - should largely work in the new sidebar */
+        .filter-section{display:flex; flex-direction: column; margin-bottom: 15px;}
+        .filter-section-header{padding:12px 0px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .filter-section-header:hover{background:rgba(255,255,255,0.03);}
+        .filter-section-title { font-weight: bold; }
+        .filter-count{color:#888; font-size:14px;}
+        .filter-options{background:transparent; margin:0; max-height: 300px; overflow-y:auto; padding-top: 10px;} /* Adapted for sidebar */
+        .filter-option{display:flex;align-items:center;justify-content:space-between;padding: 6px 0px;}
+        .filter-option:hover{background:rgba(255,255,255,0.05); margin: 0 -10px; padding: 6px 10px;} /* Add hover with slight margin adjustment */
+        .filter-label{flex:1;display:flex;justify-content:space-between;align-items:center;margin-left:12px;cursor:pointer;}
+        .filter-value-count{color:#666;font-size:14px;}
+        .filter-checkbox { accent-color: #4CAF50; /* Green accent for checkboxes */ }
+
+
+        /* Specific style tweaks from gallery.js moved here */
+         .icon-button{color:#fff;background:none;border:none;display:flex;align-items:center;justify-content:center;padding:8px;cursor:pointer;border-radius:6px;transition:background-color 0.2s;}
+        .icon-button:hover{background:rgba(255,255,255,0.15);}
+        .icon-button.active{background:rgba(255,255,255,0.3);}
+        /* controls-bar class might be obsolete if OSD controls go directly into #osd-controls-container */
+        /* .controls-bar{transition:opacity 0.2s ease;} */
+        .material-icons{font-size:24px;}
+
+    </style>
+  <script type="module" crossorigin src="/assets/index-DtnbNUOQ.js"></script>
+</head>
+<body>
+    <div id="app-container">
+        <div id="top-bar">
+            <div class="top-bar-left">
+                <div class="top-bar-logo">SAD</div> <!-- Temporary Logo -->
+                <div class="top-bar-search">
+                    <input type="text" placeholder="Search by token ID, wallet or ENS...">
+                </div>
+            </div>
+            <div class="top-bar-nav">
+                <button class="nav-button" id="explore-btn">Explore</button>
+                <button class="nav-button" id="activity-btn">Sales</button>
+                <button class="nav-button" id="collectors-btn">Collectors</button>
+                <button class="nav-button for-sale" id="for-sale-btn">For Sale <span id="for-sale-count">0</span></button>
+            </div>
+        </div>
+
+        <div id="main-content-area">
+            <div id="left-sidebar" class="sidebar">
+                <div class="left-sidebar-header">
+                    <span class="left-sidebar-title"></span>
+                    <button class="left-sidebar-close-button" id="close-left-sidebar-btn">&times;</button>
+                </div>
+                <div class="left-sidebar-content">
+                    <!-- Content for the left sidebar (e.g., token list) will go here -->
+                    <p>Token List / Details (Left Sidebar)</p> 
+                </div>
+            </div>
+
+            <div id="viewer-container">
+                <div id="viewer"></div>
+                 <!-- GIF container and Highlight box will be appended by JS to viewer.canvas -->
+            </div>
+
+            <div id="right-sidebar" class="sidebar"> <!-- Was #filterModal -->
+                <div class="filter-header">
+                    <span class="filter-header-title">Filter Attributes</span>
+                    <button class="filter-close-button" id="close-filter-btn">&times;</button>
+                </div>
+                <div class="filter-content">
+                    <!-- Filter sections will be dynamically populated here by gallery.js -->
+                    <!-- The existing .filter-header inside gallery.js's initializeFilterSections might be redundant now -->
+                </div>
+            </div>
+        </div>
+
+        <div id="bottom-bar">
+            <div id="bottom-bar-logo">CryptoPunks Logo Placeholder</div>
+            <div id="osd-controls-container">
+                <!-- OpenSeadragon controls will be moved here by gallery.js -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Song Detail Modal -->
+    <div id="songModal" class="modal">
+        <div class="modal-content">
+            <button class="close-button">&times;</button>
+            <h2 class="song-title"></h2>
+            <p class="song-number"></p>
+            <div class="video-container"></div>
+            <p class="song-description"></p>
+            <div class="attributes-grid"></div>
+            <div class="external-links"></div>
+        </div>
+    </div>
+
+</body>
+</html>

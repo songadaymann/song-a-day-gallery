@@ -1,0 +1,19 @@
+{
+  "name": "song-a-day-gallery",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "dotenv": "^16.5.0",
+    "lunr": "^2.3.9",
+    "vite": "^5.2.0"
+  },
+  "dependencies": {
+    "algoliasearch": "^4.24.0"
+  }
+}

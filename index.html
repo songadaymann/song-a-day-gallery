@@ -7,34 +7,213 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Text&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         body { 
             margin: 0; 
             padding: 0;
             font-family: 'Space Grotesk', sans-serif;
+            background-color: #333; /* Added a background for better visibility of layout */
+            color: #fff;
+            display: flex; /* Use flexbox for overall layout */
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden; /* Prevent body scrollbars */
         }
-        #header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
+
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            height: 100%;
+        }
+
+        #top-bar { /* Renamed from #header */
             height: 60px;
-            background: #000000;
-            z-index: 1500;
+            background: #1a1a1a; /* Darker background */
             display: flex;
             align-items: center;
-            justify-content: flex-end;
+            justify-content: space-between; /* Adjust for new items */
             padding: 0 20px;
             box-sizing: border-box;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            flex-shrink: 0; /* Prevent shrinking */
+            z-index: 100;
+        }
+
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .top-bar-logo {
+            /* Placeholder for a logo if needed */
+            font-weight: bold;
+            font-size: 20px;
+        }
+         .top-bar-search input {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
             color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Space Grotesk', sans-serif;
         }
-        #viewer {
-            width: 100vw;
-            height: calc(100vh - 60px);
-            background: #000;
-            margin-top: 60px;
+
+
+        .top-bar-nav {
+            display: flex;
+            gap: 10px;
         }
+
+        .nav-button {
+            color: white;
+            background: none;
+            border: 1px solid transparent; /* For consistent height with "For Sale" */
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .nav-button:hover, .nav-button.active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .nav-button.for-sale {
+            background: #4CAF50; /* Green background for "For Sale" */
+            border-color: #4CAF50;
+        }
+        .nav-button.for-sale:hover {
+            background: #45a049;
+        }
+
+
+        #main-content-area {
+            display: flex;
+            flex-grow: 1;
+            overflow: hidden; /* Prevent this area from causing page scroll */
+        }
+
+        .sidebar {
+            width: 300px; /* Default width, can be adjusted */
+            background: #111; /* Darker background for sidebars */
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            transition: width 0.3s ease;
+            flex-shrink: 0; /* Prevent shrinking */
+            z-index: 50;
+        }
+        
+        #left-sidebar {
+            /* Initially hidden or very narrow, controlled by JS/CSS classes */
+            width: 0;
+            padding: 0;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+        #left-sidebar.visible {
+            width: 320px; /* Example visible width */
+            padding: 20px;
+        }
+
+        /* Styles for the new left sidebar header */
+        .left-sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .left-sidebar-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .left-sidebar-close-button {
+            font-size: 24px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: #fff;
+        }
+        .left-sidebar-content {
+            /* Styles for the content area if needed */
+        }
+
+        #viewer-container {
+            flex-grow: 1;
+            position: relative; /* Needed for OpenSeadragon */
+            background: #000; /* Default OSD background */
+        }
+        
+        #viewer { /* Adjusted from being full width/height */
+            width: 100%;
+            height: 100%; 
+            background: #000; /* Ensure viewer itself has a background */
+        }
+
+        #right-sidebar { /* Was #filterModal */
+            border-left: 1px solid rgba(255,255,255,0.1);
+             width: 0; /* Initially hidden */
+            padding: 0;
+        }
+        #right-sidebar.visible {
+            width: 320px; /* Example visible width */
+            padding: 20px;
+        }
+        
+        /* Styles for filter modal content, adapted for sidebar */
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .filter-header-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .filter-close-button { /* New class for the X button */
+            font-size: 24px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: #fff;
+        }
+        /* .filter-content will be the main scrollable area within right-sidebar */
+        /* .filter-section, .filter-option, etc. styles should still mostly apply */
+
+
+        #bottom-bar {
+            height: 50px;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-sizing: border-box;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            flex-shrink: 0; /* Prevent shrinking */
+            z-index: 100;
+        }
+        
+        #bottom-bar-logo {
+            /* Placeholder for logo/branding */
+            font-size: 14px;
+        }
+
+        #osd-controls-container { /* Target for OSD controls */
+            display: flex;
+            gap: 4px;
+        }
+
+        /* Keep existing .highlight-box, .gif-overlay, .gif-container as they are viewer-related */
         .highlight-box {
             position: absolute;
             pointer-events: none;
@@ -45,7 +224,7 @@
             border: none;
             box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8);
             background: rgba(255, 255, 255, 0.1);
-            transition: all 0.1s ease;
+            transition: none;
         }
         .gif-overlay {
             position: absolute;
@@ -68,7 +247,9 @@
             height: 100%;
             pointer-events: none;
         }
-        .modal {
+
+        /* Styles for the song detail modal - should remain largely unchanged */
+        .modal { /* This is for the song detail modal, NOT the filter modal anymore */
             display: none;
             position: fixed;
             top: 0;
@@ -76,22 +257,22 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.9);
-            z-index: 2000;
+            z-index: 2000; /* Ensure it's on top of everything */
         }
         .modal-content {
             position: relative;
             width: 90%;
             max-width: 800px;
             margin: 40px auto;
-            background: #1a1a1a;
+            background: #111; /* Darker than sidebars for contrast */
             color: #fff;
             border-radius: 12px;
             padding: 20px;
-            max-height: 90vh;
+            max-height: calc(100vh - 80px);
             overflow-y: auto;
             font-family: 'Space Grotesk', sans-serif;
         }
-        .close-button {
+        .close-button { /* For song detail modal */
             position: absolute;
             right: 20px;
             top: 20px;
@@ -100,7 +281,7 @@
             color: #fff;
             background: rgba(255, 255, 255, 0.1);
             border: none;
-            padding: 8px 16px;
+            padding: 8px; /* Adjusted padding */
             border-radius: 50%;
             width: 36px;
             height: 36px;
@@ -112,6 +293,7 @@
         .close-button:hover {
             background: rgba(255, 255, 255, 0.2);
         }
+        /* ... other existing modal styles (.video-container, .song-title, etc.) ... */
         .video-container {
             position: relative;
             padding-bottom: 56.25%;
@@ -149,7 +331,7 @@
             margin-top: 20px;
         }
         .attribute-item {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05); /* Slightly more subtle */
             padding: 12px;
             border-radius: 8px;
         }
@@ -179,775 +361,98 @@
         .external-link:hover {
             background: #444;
         }
-        .header-button {
-            color: white;
-            background: none;
-            border: none;
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 16px;
-            cursor: pointer;
-            padding: 8px 16px;
-            border-radius: 6px;
-            transition: background-color 0.2s;
-        }
-        .header-button:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-        #filterModal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: none;
-            z-index: 2000;
-            pointer-events: none;
-        }
-        .filter-content {
-            position: fixed;
-            top: 50%;
-            right: -420px; /* Start off-screen */
-            transform: translateY(-50%);
-            width: 400px;
-            background: #fff;
-            border-radius: 12px;
-            padding: 20px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: -2px 0 20px rgba(0, 0, 0, 0.2);
-            transition: right 0.3s ease-in-out;
-            pointer-events: auto;
-        }
-        #filterModal.visible .filter-content {
-            right: 20px;
-        }
-        .filter-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            position: relative;
-            padding-right: 40px;
-        }
-        .filter-title {
-            font-size: 24px;
-            font-weight: bold;
-            color: #000;
-        }
-        .filter-section {
-            margin-bottom: 24px;
-        }
-        .filter-section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-        }
-        .filter-section-title {
-            font-size: 18px;
-            color: #000;
-        }
-        .filter-count {
-            color: #666;
-        }
-        .filter-options {
-            background: #f5f5f5;
-            margin: 0 -20px;
-        }
-        .filter-option {
-            display: flex;
-            align-items: center;
-            padding: 8px 0;
-        }
-        .filter-checkbox {
-            margin-right: 12px;
-        }
-        .filter-label {
-            font-size: 16px;
-            color: #000;
-        }
-        .filter-value-count {
-            color: #666;
-            font-size: 14px;
-        }
-        .filter-section-header {
-            padding: 12px 16px;
-        }
-        .filter-options {
-            background: #f5f5f5;
-            margin: 0 -20px;
-        }
-        #filterModal .close-button {
-            position: absolute;
-            right: 20px;
-            top: 20px;
-            font-size: 24px;
-            cursor: pointer;
-            color: #000;
-            background: rgba(0, 0, 0, 0.1);
-            border: none;
-            padding: 8px 16px;
-            border-radius: 50%;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background-color 0.2s;
-        }
-        #filterModal .close-button:hover {
-            background: rgba(0, 0, 0, 0.2);
-        }
+
+        /* Existing filter option styles - should largely work in the new sidebar */
+        .filter-section{display:flex; flex-direction: column; margin-bottom: 15px;}
+        .filter-section-header{padding:12px 0px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .filter-section-header:hover{background:rgba(255,255,255,0.03);}
+        .filter-section-title { font-weight: bold; }
+        .filter-count{color:#888; font-size:14px;}
+        .filter-options{background:transparent; margin:0; max-height: 300px; overflow-y:auto; padding-top: 10px;} /* Adapted for sidebar */
+        .filter-option{display:flex;align-items:center;justify-content:space-between;padding: 6px 0px;}
+        .filter-option:hover{background:rgba(255,255,255,0.05); margin: 0 -10px; padding: 6px 10px;} /* Add hover with slight margin adjustment */
+        .filter-label{flex:1;display:flex;justify-content:space-between;align-items:center;margin-left:12px;cursor:pointer;}
+        .filter-value-count{color:#666;font-size:14px;}
+        .filter-checkbox { accent-color: #4CAF50; /* Green accent for checkboxes */ }
+
+
+        /* Specific style tweaks from gallery.js moved here */
+         .icon-button{color:#fff;background:none;border:none;display:flex;align-items:center;justify-content:center;padding:8px;cursor:pointer;border-radius:6px;transition:background-color 0.2s;}
+        .icon-button:hover{background:rgba(255,255,255,0.15);}
+        .icon-button.active{background:rgba(255,255,255,0.3);}
+        /* controls-bar class might be obsolete if OSD controls go directly into #osd-controls-container */
+        /* .controls-bar{transition:opacity 0.2s ease;} */
+        .material-icons{font-size:24px;}
+
     </style>
 </head>
 <body>
-    <div id="header">
-        <button class="header-button" onclick="toggleFilterModal()">Explore Songs</button>
+    <div id="app-container">
+        <div id="top-bar">
+            <div class="top-bar-left">
+                <div class="top-bar-logo">SAD</div> <!-- Temporary Logo -->
+                <div class="top-bar-search">
+                    <input type="text" placeholder="Search by token ID, wallet or ENS...">
+                </div>
+            </div>
+            <div class="top-bar-nav">
+                <button class="nav-button" id="explore-btn">Explore</button>
+                <button class="nav-button" id="activity-btn">Sales</button>
+                <button class="nav-button" id="collectors-btn">Collectors</button>
+                <button class="nav-button for-sale" id="for-sale-btn">For Sale <span id="for-sale-count">0</span></button>
+            </div>
+        </div>
+
+        <div id="main-content-area">
+            <div id="left-sidebar" class="sidebar">
+                <div class="left-sidebar-header">
+                    <span class="left-sidebar-title"></span>
+                    <button class="left-sidebar-close-button" id="close-left-sidebar-btn">&times;</button>
+                </div>
+                <div class="left-sidebar-content">
+                    <!-- Content for the left sidebar (e.g., token list) will go here -->
+                    <p>Token List / Details (Left Sidebar)</p> 
+                </div>
+            </div>
+
+            <div id="viewer-container">
+                <div id="viewer"></div>
+                 <!-- GIF container and Highlight box will be appended by JS to viewer.canvas -->
+            </div>
+
+            <div id="right-sidebar" class="sidebar"> <!-- Was #filterModal -->
+                <div class="filter-header">
+                    <span class="filter-header-title">Filter Attributes</span>
+                    <button class="filter-close-button" id="close-filter-btn">&times;</button>
+                </div>
+                <div class="filter-content">
+                    <!-- Filter sections will be dynamically populated here by gallery.js -->
+                    <!-- The existing .filter-header inside gallery.js's initializeFilterSections might be redundant now -->
+                </div>
+            </div>
+        </div>
+
+        <div id="bottom-bar">
+            <div id="bottom-bar-logo">CryptoPunks Logo Placeholder</div>
+            <div id="osd-controls-container">
+                <!-- OpenSeadragon controls will be moved here by gallery.js -->
+            </div>
+        </div>
     </div>
-    <div id="viewer"></div>
+
+    <!-- Song Detail Modal -->
     <div id="songModal" class="modal">
         <div class="modal-content">
             <button class="close-button">&times;</button>
             <h2 class="song-title"></h2>
-            <div class="song-number"></div>
-            <p class="song-description"></p>
+            <p class="song-number"></p>
             <div class="video-container"></div>
+            <p class="song-description"></p>
             <div class="attributes-grid"></div>
             <div class="external-links"></div>
         </div>
     </div>
-    <div id="filterModal">
-        <div class="filter-content">
-            <div class="filter-header">
-                <div class="filter-title">Filter Attributes</div>
-                <button class="close-button" onclick="toggleFilterModal()">&times;</button>
-            </div>
-            <div class="filter-section">
-                <div class="filter-section-header">
-                    <span class="filter-section-title">Chromie Squiggle</span>
-                    <span class="filter-count">8</span>
-                </div>
-                <div class="filter-options">
-                    <div class="filter-option">
-                        <input type="checkbox" id="all-chromie" class="filter-checkbox">
-                        <label for="all-chromie" class="filter-label">All Chromie Squiggles</label>
-                    </div>
-                    <!-- Add more filter options here -->
-                </div>
-            </div>
-            <!-- Add more filter sections here -->
-        </div>
-    </div>
-    <script>
-        const viewer = OpenSeadragon({
-            id: "viewer",
-            prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/",
-            showNavigator: false,
-            constrainDuringPan: true,
-            visibilityRatio: 0.5,
-            minZoomImageRatio: 0.8,
-            defaultZoomLevel: 0.8,
-            homeFitBounds: true,
-            tileSources: {
-                height: 20520,
-                width: 36960,
-                tileSize: 256,
-                minLevel: 0,
-                maxLevel: 7,
-                getTileUrl: function(level, x, y) {
-                    return `https://songadaygallery.blob.core.windows.net/dzi/level_${level}/tiles/${x}_${y}.jpg`;
-                }
-            }
-        });
 
-        const GRID_COLS = 77;
-        const GRID_ROWS = 76;
-        const CELL_WIDTH = 36960 / GRID_COLS;
-        const CELL_HEIGHT = 20520 / GRID_ROWS;
-
-        // Create container for all GIFs
-        const gifContainer = document.createElement('div');
-        gifContainer.id = 'gif-container';
-        viewer.canvas.appendChild(gifContainer);
-
-        // Create highlight box
-        const highlightBox = document.createElement('div');
-        highlightBox.className = 'highlight-box';
-        viewer.canvas.appendChild(highlightBox);
-
-        // Track the currently highlighted song
-        let currentSongId = null;
-        let currentGifOverlays = new Map();
-
-        function getSongFromPoint(position) {
-            if (!position) return null;
-
-            const viewportPoint = viewer.viewport.pointFromPixel(position);
-            const imagePoint = viewer.viewport.viewportToImageCoordinates(viewportPoint);
-            
-            const x = Math.floor(imagePoint.x / CELL_WIDTH);
-            const y = Math.floor(imagePoint.y / CELL_HEIGHT);
-            
-            if (x >= 0 && x < GRID_COLS && y >= 0 && y < GRID_ROWS) {
-                const songId = y * GRID_COLS + x + 1;
-                if (songId <= 5852) {
-                    return {
-                        id: songId,
-                        rect: new OpenSeadragon.Rect(
-                            x * CELL_WIDTH,
-                            y * CELL_HEIGHT,
-                            CELL_WIDTH,
-                            CELL_HEIGHT
-                        )
-                    };
-                }
-            }
-            return null;
-        }
-
-        function getVisibleSongs() {
-            const viewportBounds = viewer.viewport.getBounds();
-            const imageRect = viewer.viewport.viewportToImageRectangle(viewportBounds);
-            
-            const startX = Math.max(0, Math.floor(imageRect.x / CELL_WIDTH));
-            const startY = Math.max(0, Math.floor(imageRect.y / CELL_HEIGHT));
-            const endX = Math.min(GRID_COLS - 1, Math.ceil((imageRect.x + imageRect.width) / CELL_WIDTH));
-            const endY = Math.min(GRID_ROWS - 1, Math.ceil((imageRect.y + imageRect.height) / CELL_HEIGHT));
-            
-            const songs = [];
-            for (let y = startY; y <= endY; y++) {
-                for (let x = startX; x <= endX; x++) {
-                    const songId = y * GRID_COLS + x + 1;
-                    if (songId <= 5852) {
-                        songs.push({
-                            id: songId,
-                            rect: new OpenSeadragon.Rect(
-                                x * CELL_WIDTH,
-                                y * CELL_HEIGHT,
-                                CELL_WIDTH,
-                                CELL_HEIGHT
-                            )
-                        });
-                    }
-                }
-            }
-            return songs;
-        }
-
-        function updateGifs() {
-            const zoom = viewer.viewport.getZoom();
-            const maxZoom = viewer.viewport.getMaxZoom();
-            const showGifs = zoom > maxZoom * 0.7;
-
-            if (showGifs) {
-                const visibleSongs = getVisibleSongs();
-                const currentIds = new Set();
-
-                visibleSongs.forEach(song => {
-                    currentIds.add(song.id);
-                    if (!currentGifOverlays.has(song.id)) {
-                        const overlay = document.createElement('div');
-                        overlay.className = 'gif-overlay';
-                        const img = document.createElement('img');
-                        img.src = `https://songadaygallery.blob.core.windows.net/dzi/${song.id}.gif`;
-                        overlay.appendChild(img);
-                        gifContainer.appendChild(overlay);
-                        currentGifOverlays.set(song.id, overlay);
-                    }
-
-                    const overlay = currentGifOverlays.get(song.id);
-                    const viewportRect = viewer.viewport.imageToViewportRectangle(song.rect);
-                    const elementRect = viewer.viewport.viewportToViewerElementRectangle(viewportRect);
-                    
-                    overlay.style.left = elementRect.x + 'px';
-                    overlay.style.top = elementRect.y + 'px';
-                    overlay.style.width = elementRect.width + 'px';
-                    overlay.style.height = elementRect.height + 'px';
-                    overlay.style.display = 'block';
-                });
-
-                // Remove GIFs that are no longer visible
-                for (const [id, overlay] of currentGifOverlays) {
-                    if (!currentIds.has(id)) {
-                        overlay.remove();
-                        currentGifOverlays.delete(id);
-                    }
-                }
-            } else {
-                // Hide all GIFs when zoomed out
-                currentGifOverlays.forEach(overlay => overlay.remove());
-                currentGifOverlays.clear();
-            }
-        }
-
-        function updateHighlight(position) {
-            const song = getSongFromPoint(position);
-            if (song) {
-                currentSongId = song.id;
-                const viewportRect = viewer.viewport.imageToViewportRectangle(song.rect);
-                const elementRect = viewer.viewport.viewportToViewerElementRectangle(viewportRect);
-                
-                highlightBox.style.left = elementRect.x + 'px';
-                highlightBox.style.top = elementRect.y + 'px';
-                highlightBox.style.width = elementRect.width + 'px';
-                highlightBox.style.height = elementRect.height + 'px';
-                highlightBox.style.display = 'block';
-            } else {
-                currentSongId = null;
-                highlightBox.style.display = 'none';
-            }
-        }
-
-        // Update positions during animations
-        viewer.addHandler('animation', function() {
-            updateGifs();
-            if (currentSongId && viewer.lastMousePosition) {
-                updateHighlight(viewer.lastMousePosition);
-            }
-        });
-
-        // Create MouseTracker
-        new OpenSeadragon.MouseTracker({
-            element: viewer.canvas,
-            moveHandler: function(event) {
-                if (!event.buttons) {
-                    updateHighlight(event.position);
-                }
-            },
-            overHandler: function(event) {
-                if (!event.buttons) {
-                    updateHighlight(event.position);
-                }
-            },
-            outHandler: function() {
-                currentSongId = null;
-                highlightBox.style.display = 'none';
-            },
-            stopHandler: function() {
-                if (currentSongId && viewer.lastMousePosition) {
-                    updateHighlight(viewer.lastMousePosition);
-                }
-            }
-        });
-
-        // Load coordinate map data for future use
-        fetch('data/coordinate_maps.json')
-            .then(response => response.json())
-            .then(coordinates => {
-                window.songCoordinates = coordinates;
-            })
-            .catch(error => {
-                console.error('Error loading coordinates:', error);
-            });
-
-        let songData = null;
-
-        // Load song data
-        fetch('data/songaday_clean.jsonl')
-            .then(response => response.text())
-            .then(text => {
-                songData = text.trim().split('\n').map(line => JSON.parse(line));
-                console.log('Song data loaded:', songData.length, 'songs');
-            })
-            .catch(error => {
-                console.error('Error loading song data:', error);
-            });
-
-        const modal = document.getElementById('songModal');
-        const closeButton = modal.querySelector('.close-button');
-
-        closeButton.addEventListener('click', () => {
-            modal.style.display = 'none';
-        });
-
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) {
-                modal.style.display = 'none';
-            }
-        });
-
-        function getYouTubeVideoId(url) {
-            if (!url) return null;
-            
-            // Handle youtu.be format
-            if (url.includes('youtu.be')) {
-                return url.split('youtu.be/')[1];
-            }
-            
-            // Handle youtube.com format
-            const searchParams = new URL(url).searchParams;
-            return searchParams.get('v');
-        }
-
-        function displaySongDetails(songId) {
-            console.log('displaySongDetails called with ID:', songId);
-            if (!songData) {
-                console.log('songData is not loaded yet');
-                return;
-            }
-            
-            const song = songData.find(s => s.token_id === songId);
-            console.log('Found song:', song);
-            if (!song) {
-                console.log('No song found with token_id:', songId);
-                return;
-            }
-
-            const modalContent = modal.querySelector('.modal-content');
-            modalContent.querySelector('.song-title').textContent = song.name;
-            modalContent.querySelector('.song-number').textContent = `Song #${song.token_id}`;
-            modalContent.querySelector('.song-description').textContent = song.description;
-
-            // Set up video
-            const videoContainer = modalContent.querySelector('.video-container');
-            videoContainer.innerHTML = '';
-            if (song.youtube_url) {
-                const videoId = getYouTubeVideoId(song.youtube_url);
-                if (videoId) {
-                    const iframe = document.createElement('iframe');
-                    iframe.src = `https://www.youtube.com/embed/${videoId}`;
-                    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-                    iframe.allowFullscreen = true;
-                    videoContainer.appendChild(iframe);
-                }
-            }
-
-            // Set up attributes (excluding token_id since it's now shown above)
-            const attributesGrid = modalContent.querySelector('.attributes-grid');
-            attributesGrid.innerHTML = '';
-            
-            if (song.attributes) {
-                song.attributes.forEach(attr => {
-                    if (attr.trait_type !== 'Song A Day') {  // Skip the song number in attributes
-                        const item = document.createElement('div');
-                        item.className = 'attribute-item';
-                        item.innerHTML = `
-                            <div class="attribute-label">${attr.trait_type}</div>
-                            <div class="attribute-value">${attr.value}</div>
-                        `;
-                        attributesGrid.appendChild(item);
-                    }
-                });
-            }
-
-            // Set up external links
-            const linksContainer = modalContent.querySelector('.external-links');
-            linksContainer.innerHTML = '';
-            
-            if (song.external_url) {
-                const songLink = document.createElement('a');
-                songLink.href = song.external_url;
-                songLink.className = 'external-link';
-                songLink.textContent = 'View on Song A Day';
-                songLink.target = '_blank';
-                linksContainer.appendChild(songLink);
-            }
-
-            modal.style.display = 'block';
-        }
-
-        // Add click handler to viewer
-        viewer.addHandler('canvas-click', function(event) {
-            console.log('Canvas clicked', event);
-            if (!event.quick) {
-                console.log('Not a quick click, returning');
-                return;
-            }
-            
-            const song = getSongFromPoint(event.position);
-            console.log('Song from point:', song);
-            if (song) {
-                console.log('Attempting to display song details for ID:', song.id);
-                console.log('Current songData loaded:', !!songData);
-                displaySongDetails(song.id);
-            }
-        });
-
-        function toggleFilterModal() {
-            const modal = document.getElementById('filterModal');
-            if (modal.style.display === 'none') {
-                modal.style.display = 'block';
-                setTimeout(() => {
-                    modal.classList.add('visible');
-                }, 10);
-                if (!modal.hasAttribute('data-initialized')) {
-                    initializeFilterSections();
-                    modal.setAttribute('data-initialized', 'true');
-                }
-            } else {
-                modal.classList.remove('visible');
-                setTimeout(() => {
-                    modal.style.display = 'none';
-                }, 300);
-            }
-        }
-
-        // Update click outside behavior
-        document.getElementById('filterModal').addEventListener('click', (event) => {
-            if (event.target === event.currentTarget) {
-                toggleFilterModal();
-            }
-        });
-
-        // Function to collect and organize all unique attributes
-        function collectAttributes(songs) {
-            // Define the order of main categories
-            const categoryOrder = ['Topic', 'Genre', 'Mood', 'Location', 'Instrument', 'Style', 'Noun', 'Proper Noun'];
-            const attributeMap = new Map();
-
-            // Initialize maps for each category
-            categoryOrder.forEach(category => {
-                attributeMap.set(category, new Map()); // category -> value -> count
-            });
-
-            // Count occurrences of each value
-            songs.forEach(song => {
-                if (song.attributes) {
-                    song.attributes.forEach(attr => {
-                        if (categoryOrder.includes(attr.trait_type) && attr.value) {
-                            const categoryMap = attributeMap.get(attr.trait_type);
-                            const currentCount = categoryMap.get(attr.value) || 0;
-                            categoryMap.set(attr.value, currentCount + 1);
-                        }
-                    });
-                }
-            });
-
-            // Convert to array of objects with sorted values
-            return categoryOrder
-                .filter(category => attributeMap.get(category).size > 0)
-                .map(category => {
-                    const valueMap = attributeMap.get(category);
-                    const values = Array.from(valueMap.entries())
-                        .map(([value, count]) => ({ value, count }))
-                        .sort((a, b) => b.count - a.count); // Sort values by frequency
-
-                    return {
-                        trait_type: category,
-                        values,
-                        count: values.length
-                    };
-                });
-        }
-
-        // Update styles for nested appearance
-        const styleSheet = document.createElement('style');
-        styleSheet.textContent = `
-            .filter-option {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 8px 16px;
-            }
-            .filter-option:hover {
-                background: rgba(0, 0, 0, 0.05);
-            }
-            .filter-label {
-                flex: 1;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-left: 12px;
-                cursor: pointer;
-            }
-            .filter-value-count {
-                color: #666;
-                font-size: 14px;
-            }
-            .filter-section-header {
-                padding: 12px 16px;
-            }
-            .filter-options {
-                background: #f5f5f5;
-                margin: 0 -20px;
-            }
-        `;
-        document.head.appendChild(styleSheet);
-
-        // Call after viewer is ready
-        viewer.addHandler('open', function() {
-            // Center the image
-            viewer.viewport.goHome(true);
-            
-            // Set bounds to prevent excessive panning
-            const imageBounds = viewer.viewport.getHomeBounds();
-            viewer.viewport.setBounds(imageBounds, true);
-        });
-
-        let filterOverlays = new Map();
-
-        function createOverlayForSong(songId) {
-            const col = (songId - 1) % GRID_COLS;
-            const row = Math.floor((songId - 1) / GRID_COLS);
-            
-            const rect = new OpenSeadragon.Rect(
-                col * CELL_WIDTH,
-                row * CELL_HEIGHT,
-                CELL_WIDTH,
-                CELL_HEIGHT
-            );
-
-            const overlay = document.createElement('div');
-            overlay.style.position = 'absolute';
-            overlay.style.background = 'rgba(0, 0, 0, 0.5)';
-            overlay.style.pointerEvents = 'none';
-            overlay.style.zIndex = '1001';
-
-            const viewportRect = viewer.viewport.imageToViewportRectangle(rect);
-            const elementRect = viewer.viewport.viewportToViewerElementRectangle(viewportRect);
-            
-            overlay.style.left = elementRect.x + 'px';
-            overlay.style.top = elementRect.y + 'px';
-            overlay.style.width = elementRect.width + 'px';
-            overlay.style.height = elementRect.height + 'px';
-            
-            viewer.canvas.appendChild(overlay);
-
-            // Update position on animation
-            viewer.addHandler('animation', function() {
-                if (overlay.parentNode) {  // Only update if overlay still exists
-                    const updatedViewportRect = viewer.viewport.imageToViewportRectangle(rect);
-                    const updatedElementRect = viewer.viewport.viewportToViewerElementRectangle(updatedViewportRect);
-                    
-                    overlay.style.left = updatedElementRect.x + 'px';
-                    overlay.style.top = updatedElementRect.y + 'px';
-                    overlay.style.width = updatedElementRect.width + 'px';
-                    overlay.style.height = updatedElementRect.height + 'px';
-                }
-            });
-
-            return overlay;
-        }
-
-        let selectedFilters = new Map(); // Map of trait_type -> Set of selected values
-
-        function updateFilterOverlays() {
-            // Clear existing overlays
-            filterOverlays.forEach(overlay => overlay.remove());
-            filterOverlays.clear();
-
-            // If no filters selected, return
-            if (selectedFilters.size === 0) return;
-
-            // Create overlays for non-matching songs
-            const visibleSongs = getVisibleSongs();
-            
-            visibleSongs.forEach(visibleSong => {
-                const song = songData.find(s => s.token_id === visibleSong.id);
-                if (!song) return;
-
-                // Check if song matches ALL selected filters
-                const matchesAllFilters = Array.from(selectedFilters.entries()).every(([trait, values]) => {
-                    const songAttribute = song.attributes.find(attr => attr.trait_type === trait);
-                    return songAttribute && values.has(songAttribute.value);
-                });
-
-                // Create overlay for non-matching songs
-                if (!matchesAllFilters) {
-                    const overlay = createOverlayForSong(visibleSong.id);
-                    filterOverlays.set(visibleSong.id, overlay);
-                }
-            });
-        }
-
-        // Update the checkbox event handler in initializeFilterSections
-        function initializeFilterSections() {
-            const filterContent = document.querySelector('.filter-content');
-            const attributes = collectAttributes(songData);
-            
-            // Clear existing content except header
-            const header = filterContent.querySelector('.filter-header');
-            filterContent.innerHTML = '';
-            filterContent.appendChild(header);
-
-            // Add sections for each attribute type
-            attributes.forEach(attr => {
-                const section = document.createElement('div');
-                section.className = 'filter-section';
-                
-                const header = document.createElement('div');
-                header.className = 'filter-section-header';
-                header.innerHTML = `
-                    <span class="filter-section-title">${attr.trait_type}</span>
-                    <span class="filter-count">${attr.count}</span>
-                `;
-
-                const options = document.createElement('div');
-                options.className = 'filter-options';
-                options.style.display = 'none'; // Start collapsed
-
-                // Add options for each value with its count
-                attr.values.forEach(({ value, count }) => {
-                    const option = document.createElement('div');
-                    option.className = 'filter-option';
-                    const id = `filter-${attr.trait_type}-${value}`.replace(/\s+/g, '-').toLowerCase();
-                    option.innerHTML = `
-                        <input type="checkbox" id="${id}" class="filter-checkbox" 
-                               data-trait="${attr.trait_type}" data-value="${value}">
-                        <label for="${id}" class="filter-label">
-                            <span class="filter-value">${value}</span>
-                            <span class="filter-value-count">${count}</span>
-                        </label>
-                    `;
-                    
-                    // Add change handler for the checkbox
-                    const checkbox = option.querySelector('input[type="checkbox"]');
-                    checkbox.addEventListener('change', (e) => {
-                        const trait = e.target.dataset.trait;
-                        const value = e.target.dataset.value;
-
-                        // Initialize set for this trait if it doesn't exist
-                        if (!selectedFilters.has(trait)) {
-                            selectedFilters.set(trait, new Set());
-                        }
-
-                        // Add or remove the value from the set
-                        if (e.target.checked) {
-                            selectedFilters.get(trait).add(value);
-                        } else {
-                            selectedFilters.get(trait).delete(value);
-                            // Remove the trait entirely if no values are selected
-                            if (selectedFilters.get(trait).size === 0) {
-                                selectedFilters.delete(trait);
-                            }
-                        }
-
-                        updateFilterOverlays();
-                        e.stopPropagation();
-                    });
-                    
-                    options.appendChild(option);
-                });
-
-                section.appendChild(header);
-                section.appendChild(options);
-                filterContent.appendChild(section);
-
-                // Add click handler for expand/collapse
-                header.addEventListener('click', () => {
-                    const wasHidden = options.style.display === 'none';
-                    // Close all other sections
-                    document.querySelectorAll('.filter-options').forEach(opt => {
-                        opt.style.display = 'none';
-                    });
-                    // Open this section if it was closed
-                    if (wasHidden) {
-                        options.style.display = 'block';
-                    }
-                });
-            });
-        }
-
-        // Remove the static filter section from HTML
-        document.querySelector('.filter-content').innerHTML = `
-            <div class="filter-header">
-                <div class="filter-title">Filter Attributes</div>
-                <button class="close-button" onclick="toggleFilterModal()">&times;</button>
-            </div>
-        `;
-    </script>
+    <script type="module" src="src/gallery.js"></script>
 </body>
 </html>
