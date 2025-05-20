@@ -52,13 +52,29 @@
             font-weight: bold;
             font-size: 20px;
         }
-         .top-bar-search input {
+        .top-bar-search input {
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
             color: white;
             padding: 8px 12px;
             border-radius: 6px;
             font-family: 'Space Grotesk', sans-serif;
+        }
+        .search-results {
+            position: absolute;
+            background: #1a1a1a;
+            border: 1px solid rgba(255,255,255,0.2);
+            max-height: 200px;
+            overflow-y: auto;
+            width: 250px;
+            z-index: 200;
+        }
+        .search-result {
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+        .search-result:hover {
+            background: rgba(255,255,255,0.1);
         }
 
 
@@ -189,24 +205,6 @@
         /* .filter-content will be the main scrollable area within right-sidebar */
         /* .filter-section, .filter-option, etc. styles should still mostly apply */
 
-
-        #bottom-bar {
-            height: 50px;
-            background: #1a1a1a;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            box-sizing: border-box;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            flex-shrink: 0; /* Prevent shrinking */
-            z-index: 100;
-        }
-        
-        #bottom-bar-logo {
-            /* Placeholder for logo/branding */
-            font-size: 14px;
-        }
 
         #osd-controls-container { /* Target for OSD controls */
             display: flex;
@@ -370,7 +368,7 @@
         .filter-count{color:#888; font-size:14px;}
         .filter-options{background:transparent; margin:0; max-height: 300px; overflow-y:auto; padding-top: 10px;} /* Adapted for sidebar */
         .filter-option{display:flex;align-items:center;justify-content:space-between;padding: 6px 0px;}
-        .filter-option:hover{background:rgba(255,255,255,0.05); margin: 0 -10px; padding: 6px 10px;} /* Add hover with slight margin adjustment */
+        .filter-option:hover{background:rgba(255,255,255,0.05);} /* No movement on hover */
         .filter-label{flex:1;display:flex;justify-content:space-between;align-items:center;margin-left:12px;cursor:pointer;}
         .filter-value-count{color:#666;font-size:14px;}
         .filter-checkbox { accent-color: #4CAF50; /* Green accent for checkboxes */ }
@@ -392,10 +390,11 @@
             <div class="top-bar-left">
                 <div class="top-bar-logo">SAD</div> <!-- Temporary Logo -->
                 <div class="top-bar-search">
-                    <input type="text" placeholder="Search by token ID, wallet or ENS...">
+                    <input type="text" id="search-input" placeholder="Search by token ID, wallet or ENS...">
                 </div>
             </div>
             <div class="top-bar-nav">
+                <button class="nav-button" id="home-view-btn">Home</button>
                 <button class="nav-button" id="explore-btn">Explore</button>
                 <button class="nav-button" id="activity-btn">Sales</button>
                 <button class="nav-button" id="collectors-btn">Collectors</button>
@@ -432,12 +431,7 @@
             </div>
         </div>
 
-        <div id="bottom-bar">
-            <div id="bottom-bar-logo">CryptoPunks Logo Placeholder</div>
-            <div id="osd-controls-container">
-                <!-- OpenSeadragon controls will be moved here by gallery.js -->
-            </div>
-        </div>
+        <div id="osd-controls-container"></div>
     </div>
 
     <!-- Song Detail Modal -->

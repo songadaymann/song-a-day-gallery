@@ -1,4 +1,5 @@
 import { createButton } from './ui/createButton.js';
+import { initSearchBar } from './ui/search.js';
 import { initAlgoliaIndex } from './api/algolia.js';
 import * as openSeaApi from './api/opensea.js';
 import * as etherscanApi from './api/etherscan.js';
@@ -377,12 +378,22 @@ import * as etherscanApi from './api/etherscan.js';
     const activityBtn = document.getElementById('activity-btn');
     const collectorsBtn = document.getElementById('collectors-btn');
     const forSaleBtn = document.getElementById('for-sale-btn');
+    const homeViewBtn = document.getElementById('home-view-btn');
+    const searchInput = document.getElementById('search-input');
     const forSaleCountSpan = document.getElementById('for-sale-count');
 
     closeButton.addEventListener('click', () => (modal.style.display = 'none'));
     modal.addEventListener('click', e => {
         if (e.target === modal) modal.style.display = 'none';
     });
+
+    if (homeViewBtn) {
+        homeViewBtn.addEventListener('click', () => viewer.viewport.goHome());
+    }
+
+    if (searchInput) {
+        initSearchBar(searchInput, algoliaIndex, id => displaySongDetails(id));
+    }
 
     function getYouTubeVideoId(url) {
         if (!url) return null;
@@ -580,13 +591,16 @@ import * as etherscanApi from './api/etherscan.js';
             selectedFilters.clear();
             viewer.viewport.goHome();
             updateFilterOverlays();
+            initializeFilterSections();
         });
         filterContentDiv.appendChild(clearBtn);
 
         try {
             const { facets } = await algoliaIndex.search('', {
                 facets: categoryOrder, // Request facets for these categories
-                hitsPerPage: 0 // We only need facet data, not actual hits
+                hitsPerPage: 0, // We only need facet data, not actual hits
+                maxValuesPerFacet: 1000,
+                facetFilters: buildFacetFilters()
             });
 
             if (!facets) {
@@ -622,8 +636,9 @@ import * as etherscanApi from './api/etherscan.js';
                     const option = document.createElement('div');
                     option.className = 'filter-option';
                     const id = `filter-${traitType}-${value}`.replace(/\s+/g, '-').toLowerCase();
+                    const checked = selectedFilters.has(traitType) && selectedFilters.get(traitType).has(value);
                     option.innerHTML = `
-                        <input type="checkbox" id="${id}" class="filter-checkbox" data-trait="${traitType}" data-value="${value}">
+                        <input type="checkbox" id="${id}" class="filter-checkbox" data-trait="${traitType}" data-value="${value}" ${checked ? 'checked' : ''}>
                         <label for="${id}" class="filter-label"><span class="filter-value">${value}</span><span class="filter-value-count">${count}</span></label>`;
 
                     option.querySelector('input').addEventListener('change', e => {
@@ -638,6 +653,7 @@ import * as etherscanApi from './api/etherscan.js';
                         }
                         viewer.viewport.goHome(); // zoom out so context is visible
                         updateFilterOverlays(); // refresh dimming/highlights
+                        initializeFilterSections(); // refresh available options
                         e.stopPropagation();
                     });
                     options.appendChild(option);
@@ -709,65 +725,7 @@ import * as etherscanApi from './api/etherscan.js';
 
     // END copied logic --------------------------------------------------
 
-    // ---------------------------------------------
-    // UI – bottom-right control bar (previously top-right)
-    // ---------------------------------------------
-    const osdControlsContainer = document.getElementById('osd-controls-container'); // New container
-
-    const zoomInBtn = createButton({
-        icon: 'zoom_in',
-        label: 'Zoom in',
-        onClick: () => {
-            viewer.viewport.zoomBy(1.2);
-            viewer.viewport.applyConstraints();
-        }
-    });
-
-    const zoomOutBtn = createButton({
-        icon: 'zoom_out',
-        label: 'Zoom out',
-        onClick: () => {
-            viewer.viewport.zoomBy(1 / 1.2);
-            viewer.viewport.applyConstraints();
-        }
-    });
-
-    const homeBtn = createButton({
-        icon: 'home',
-        label: 'Reset view',
-        onClick: () => viewer.viewport.goHome()
-    });
-
-    const gifToggleBtn = createButton({
-        icon: 'gif',
-        label: 'Toggle GIFs',
-        onClick: () => {
-            gifEnabled = !gifEnabled;
-            gifToggleBtn.classList.toggle('active', gifEnabled);
-            updateGifs();
-        }
-    });
-
-    const filterBtn = createButton({
-        icon: 'filter_list',
-        label: 'Filter', // This button will now also toggle the right sidebar
-        onClick: () => toggleRightSidebar() // Changed to toggleRightSidebar
-    });
-
-    // Append buttons directly to the new container
-    osdControlsContainer.appendChild(zoomInBtn);
-    osdControlsContainer.appendChild(zoomOutBtn);
-    osdControlsContainer.appendChild(homeBtn);
-    osdControlsContainer.appendChild(gifToggleBtn);
-    osdControlsContainer.appendChild(filterBtn);
-
-    // basic styles for icon buttons are now in index.html's <style> block
-    // const uiStyle = document.createElement('style');
-    // uiStyle.textContent = `...`;
-    // document.head.appendChild(uiStyle);
-    // ---------------------------------------------
-    // END UI control bar
-    // ---------------------------------------------
+    // No bottom control bar – controls moved or removed
 
     // Ensure updateForSaleCount is defined before initOpenSea uses it.
     // (Hoisting should handle this for function declarations, but being explicit)
