@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import * as openSeaApi from '../src/opensea-api.js';
+import * as openSeaApi from '../src/api/opensea.js';
 
 async function fetchAllNFTIds(collectionSlug, apiKey, chain = 'ethereum', limitPerPage = 200, maxPages = 50, perRequestDelayMs = 500) {
   const tokenIds = new Set();

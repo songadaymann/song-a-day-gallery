@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import * as openSeaApi from '../src/opensea-api.js';
+import * as openSeaApi from '../src/api/opensea.js';
 
 async function main() {
   const API_KEY = process.env.VITE_OPENSEA_API_KEY || process.env.OPENSEA_API_KEY;
