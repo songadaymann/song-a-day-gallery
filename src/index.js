@@ -485,29 +485,97 @@ import * as etherscanApi from './api/etherscan.js';
         if (!query) return;
         try {
             const { hits } = await algoliaIndex.search(query, { hitsPerPage: 50 });
-            const modalEl = document.getElementById('searchModal');
-            const closeBtn = modalEl.querySelector('.close-button');
-            const titleEl = modalEl.querySelector('.search-results-title');
-            const listEl = modalEl.querySelector('.search-results-list');
-            listEl.innerHTML = '';
-            titleEl.textContent = `Results for "${query}"`;
-            hits.forEach(hit => {
-                const li = document.createElement('li');
-                const label = hit.name || `Song #${hit.token_id}`;
-                li.textContent = label;
-                li.addEventListener('click', () => {
-                    modalEl.style.display = 'none';
-                    displaySongDetails(parseInt(hit.objectID, 10));
+
+            // Get left sidebar elements
+            const sidebar = document.getElementById('left-sidebar');
+            const sidebarTitle = sidebar.querySelector('.left-sidebar-title');
+            const sidebarContent = sidebar.querySelector('.left-sidebar-content');
+
+            if (!sidebar || !sidebarTitle || !sidebarContent) {
+                console.error('Left sidebar elements not found for search results!');
+                return;
+            }
+
+            sidebarContent.innerHTML = ''; // Clear previous content
+            sidebarTitle.textContent = `Results for "${query}"`;
+            
+            if (hits.length === 0) {
+                const p = document.createElement('p');
+                p.textContent = 'No results found.';
+                sidebarContent.appendChild(p);
+            } else {
+                const listEl = document.createElement('ul');
+                listEl.className = 'search-results-list'; // Reuse existing class for styling if desired
+                listEl.style.listStyleType = 'none'; // Explicitly style if not covered by class
+                listEl.style.paddingLeft = '0';      // Explicitly style
+
+                hits.forEach(hit => {
+                    const li = document.createElement('li');
+                    // Basic styling for list items, can be enhanced with CSS
+                    li.style.padding = '8px 0';
+                    li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                    li.style.cursor = 'pointer';
+                    
+                    const label = hit.name || `Song #${hit.token_id}`;
+                    const tokenIdStr = hit.objectID; // Assuming objectID is the token ID string
+
+                    li.textContent = label;
+                    li.addEventListener('click', () => {
+                        sidebar.classList.remove('visible'); // Hide sidebar on selection
+                        displaySongDetails(parseInt(tokenIdStr, 10));
+                    });
+
+                    // Add hover zoom behaviour
+                    if (tokenIdStr) {
+                        li.addEventListener('mouseenter', () => {
+                            const idNum = parseInt(tokenIdStr, 10);
+                            if (!Number.isFinite(idNum) || idNum < 1 || idNum > 5852) return; // Adjust max ID if necessary
+                            const col = (idNum - 1) % GRID_COLS;
+                            const row = Math.floor((idNum - 1) / GRID_COLS);
+                            const imgRect = new OpenSeadragon.Rect(col * CELL_WIDTH, row * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT);
+
+                            const PAD = 1.5;
+                            const padW = imgRect.width * (PAD - 1) / 2;
+                            const padH = imgRect.height * (PAD - 1) / 2;
+                            const padded = new OpenSeadragon.Rect(imgRect.x - padW, imgRect.y - padH, imgRect.width * PAD, imgRect.height * PAD);
+
+                            const vpRect = viewer.viewport.imageToViewportRectangle(padded);
+                            viewer.viewport.fitBounds(vpRect, false);
+
+                            const elementRect = viewer.viewport.viewportToViewerElementRectangle(viewer.viewport.imageToViewportRectangle(imgRect));
+                            highlightBox.style.left = elementRect.x + 'px';
+                            highlightBox.style.top = elementRect.y + 'px';
+                            highlightBox.style.width = elementRect.width + 'px';
+                            highlightBox.style.height = elementRect.height + 'px';
+                            highlightBox.style.display = 'block';
+                        });
+
+                        li.addEventListener('mouseleave', () => {
+                            highlightBox.style.display = 'none';
+                        });
+                    }
+                    
+                    // Original hover effect for background change
+                    li.addEventListener('mouseenter', () => { li.style.background = 'rgba(255,255,255,0.1)'; });
+                    li.addEventListener('mouseleave', () => { li.style.background = ''; });
+                    listEl.appendChild(li);
                 });
-                listEl.appendChild(li);
-            });
-            modalEl.style.display = 'block';
-            closeBtn.onclick = () => (modalEl.style.display = 'none');
-            modalEl.addEventListener('click', e => {
-                if (e.target === modalEl) modalEl.style.display = 'none';
-            });
+                sidebarContent.appendChild(listEl);
+            }
+
+            sidebar.classList.add('visible');
+            // The existing close button for the left sidebar should work.
+            // We don't need to re-attach event listeners for it here.
+            // We also don't want to call deactivateSalesView() when closing search results.
+
         } catch (err) {
-            console.error('Error performing search', err);
+            console.error('Error performing search and displaying in sidebar', err);
+            // Optionally, display error in sidebar
+            const sidebarContent = document.getElementById('left-sidebar')?.querySelector('.left-sidebar-content');
+            if(sidebarContent) {
+                sidebarContent.innerHTML = '<p>Error loading search results.</p>';
+                document.getElementById('left-sidebar')?.classList.add('visible');
+            }
         }
     }
 
@@ -1432,7 +1500,7 @@ import * as etherscanApi from './api/etherscan.js';
                         const padded = new OpenSeadragon.Rect(imgRect.x - padW, imgRect.y - padH, imgRect.width * PAD, imgRect.height * PAD);
 
                         const vpRect = viewer.viewport.imageToViewportRectangle(padded);
-                        viewer.viewport.fitBounds(vpRect, false); // animate
+                        viewer.viewport.fitBounds(vpRect, false);
 
                         // Also draw highlight box around the song
                         const elementRect = viewer.viewport.viewportToViewerElementRectangle(viewer.viewport.imageToViewportRectangle(imgRect));
