@@ -12,7 +12,8 @@ export async function fetchCollectors(
         pageSize = 1000,
         maxPages = Infinity,
         chain = 'ethereum',
-        sort = 'desc' // 'desc' gives us current owners first and avoids the 10k-row cap issue
+        sort = 'desc', // 'desc' gives us current owners first and avoids the 10k-row cap issue
+        progressCallback = null // Optional callback: (progress, status) => void, progress is 0-1
     } = {}
 ) {
     if (!contractAddress || !apiKey) {
@@ -34,8 +35,17 @@ export async function fetchCollectors(
     // Heuristic: if we loop for N pages with no new tokens we break early
     let pagesSinceProgress = 0;
     const PROGRESS_THRESHOLD = 3;
+    
+    // For progress tracking, estimate total pages needed (cap at reasonable number for progress calculation)
+    const estimatedMaxPages = Math.min(maxPages === Infinity ? 50 : maxPages, 50);
 
     while (page <= maxPages) {
+        if (progressCallback) {
+            const progress = Math.min((page - 1) / estimatedMaxPages, 0.9);
+            const status = `Processing transfer history - page ${page}...`;
+            progressCallback(progress, status);
+        }
+
         const url = `${BASE}?module=account&action=tokennfttx&contractaddress=${contractAddress}&page=${page}&offset=${pageSize}&sort=${sort}&apikey=${apiKey}`;
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Etherscan error ${response.status}`);
@@ -104,9 +114,17 @@ export async function fetchCollectors(
         page += 1;
     }
 
+    if (progressCallback) {
+        progressCallback(0.95, 'Organizing collector data...');
+    }
+
     const collectors = [...owners.entries()]
         .map(([address, set]) => ({ address, tokens: [...set], count: set.size }))
         .sort((a, b) => b.count - a.count);
+
+    if (progressCallback) {
+        progressCallback(1.0, `Found ${collectors.length} collectors from ${processedTransfers.toLocaleString()} transfers`);
+    }
 
     return { collectors, totalScanned: processedTransfers };
 } 

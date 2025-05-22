@@ -13,31 +13,76 @@ async function fetchOpenSeaData(endpoint, apiKey, chain = 'ethereum', options = 
         headers['content-type'] = 'application/json';
     }
 
-    try {
-        const response = await fetch(`${OPENSEA_API_BASE_URL}${endpoint}`, { headers, ...options });
-        if (!response.ok) {
-            // Try to parse error response from OpenSea, otherwise use status text
-            let errorMessage = response.statusText;
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.message || (typeof errorData === 'string' ? errorData : JSON.stringify(errorData));
-                if (errorData.errors) { // OpenSea sometimes returns errors in an array
-                    errorMessage = errorData.errors.join(', ');
+    let retries = 0;
+    const maxRetries = 5; // Max number of retries
+    const initialDelay = 1000; // Initial delay in ms (1 second)
+    const maxDelay = 16000; // Max delay in ms (16 seconds)
+
+    while (retries <= maxRetries) {
+        try {
+            const response = await fetch(`${OPENSEA_API_BASE_URL}${endpoint}`, { headers, ...options });
+            if (!response.ok) {
+                if (response.status === 429) {
+                    retries++;
+                    if (retries > maxRetries) {
+                        console.error(`OpenSea API Error (429): Max retries exceeded for endpoint ${endpoint}`);
+                        throw new Error(`OpenSea API request failed: ${response.status} - Max retries exceeded`);
+                    }
+                    // Calculate delay: initialDelay * 2^(retries-1), capped by maxDelay
+                    const delay = Math.min(initialDelay * Math.pow(2, retries - 1), maxDelay);
+                    // Add some jitter to avoid thundering herd problem
+                    const jitter = delay * 0.2 * Math.random();
+                    const totalDelay = Math.floor(delay + jitter);
+
+                    console.warn(`OpenSea API (429) - Retrying endpoint ${endpoint} in ${totalDelay}ms (attempt ${retries}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, totalDelay));
+                    continue; // Retry the request
                 }
-            } catch (e) {
-                // Ignore if error response is not JSON
+
+                // Try to parse other error responses from OpenSea
+                let errorMessage = response.statusText;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.message || (typeof errorData === 'string' ? errorData : JSON.stringify(errorData));
+                    if (errorData.errors) { // OpenSea sometimes returns errors in an array
+                        errorMessage = errorData.errors.join(', ');
+                    }
+                } catch (e) {
+                    // Ignore if error response is not JSON
+                }
+                console.error(`OpenSea API Error (${response.status}): ${errorMessage} for endpoint ${endpoint}`);
+                throw new Error(`OpenSea API request failed: ${response.status} - ${errorMessage}`);
             }
-            console.error(`OpenSea API Error (${response.status}): ${errorMessage} for endpoint ${endpoint}`);
-            throw new Error(`OpenSea API request failed: ${response.status} - ${errorMessage}`);
+            if (response.status === 204) { // No content
+                return null;
+            }
+            return await response.json();
+        } catch (error) {
+            // Check if it's a network error or an error thrown from the retry logic
+            if (retries > maxRetries || (error.message && !error.message.includes('OpenSea API request failed'))) {
+                 // If max retries exceeded or it's not an error we want to retry from the `throw new Error` above
+                console.error(`Error fetching from OpenSea endpoint ${endpoint}:`, error);
+                throw error; // Re-throw the error to be caught by the caller
+            }
+            // If it's an error like a network issue that didn't get a response.status, we might want to retry here too.
+            // For simplicity, current logic only retries 429s. To retry other errors, adjust the condition above.
+            // For now, if it's not a 429 that we've handled, or max retries not hit, we rethrow.
+            // This could happen if fetch itself fails (e.g. network error)
+             if (retries === 0) { // if it's the first attempt and it's not a 429, throw immediately
+                console.error(`Error fetching from OpenSea endpoint ${endpoint} (will not retry):`, error);
+                throw error;
+            }
+            // If it's a subsequent attempt (meaning we are in a retry loop from a previous 429) and a new error occurs,
+            // we might want to log it and continue the loop or break. For now, let's assume we only retry 429s.
+            // This path should ideally not be hit if the error is not a 429.
+            console.error(`Unhandled error during retry for OpenSea endpoint ${endpoint}:`, error);
+            throw error;
+
         }
-        if (response.status === 204) { // No content
-            return null;
-        }
-        return await response.json();
-    } catch (error) {
-        console.error(`Error fetching from OpenSea endpoint ${endpoint}:`, error);
-        throw error; // Re-throw the error to be caught by the caller
     }
+    // This part should ideally not be reached if maxRetries leads to an error throw.
+    // Adding a fallback throw in case the loop exits unexpectedly.
+    throw new Error('Exited retry loop unexpectedly in fetchOpenSeaData');
 }
 
 // Fetches the collection slug for a given contract address
@@ -148,13 +193,19 @@ export async function fetchAllListingsForSale(
     maxPages = 20,
     allowedSources = null,
     priceClusterThreshold = 10, // if >10 identical-price listings, assume NFTx cluster and drop all of them
-    perRequestDelayMs = 0
+    progressCallback = null // Optional callback: (progress, status) => void, progress is 0-1
 ) {
     // Returns an array containing ALL active listings (may perform multiple requests)
     const allListings = [];
     let cursor = null;
     let pagesFetched = 0;
     do {
+        if (progressCallback) {
+            const progress = pagesFetched / maxPages;
+            const status = `Fetching page ${pagesFetched + 1}${maxPages ? ` of ${maxPages}` : ''}...`;
+            progressCallback(progress, status);
+        }
+
         const endpoint = cursor
             ? `/listings/collection/${collectionSlug}/all?limit=${Math.min(limitPerPage, 100)}&cursor=${encodeURIComponent(cursor)}`
             : `/listings/collection/${collectionSlug}/all?limit=${Math.min(limitPerPage, 100)}`;
@@ -173,11 +224,11 @@ export async function fetchAllListingsForSale(
         }
         cursor = data?.next || null;
         pagesFetched += 1;
-
-        if (perRequestDelayMs && perRequestDelayMs > 0) {
-            await new Promise(res => setTimeout(res, perRequestDelayMs));
-        }
     } while (cursor && pagesFetched < maxPages);
+
+    if (progressCallback) {
+        progressCallback(0.9, 'Processing price clusters...');
+    }
 
     // Detect large clusters of identical price listings (common with NFTx floor vault listings)
     if (priceClusterThreshold && priceClusterThreshold > 0) {
@@ -201,8 +252,15 @@ export async function fetchAllListingsForSale(
         );
 
         if (suspectKeys.size) {
+            if (progressCallback) {
+                progressCallback(0.95, `Filtering out ${suspectKeys.size} price clusters...`);
+            }
             return allListings.filter(l => !suspectKeys.has(priceKeyFn(l)));
         }
+    }
+
+    if (progressCallback) {
+        progressCallback(1.0, `Found ${allListings.length} listings`);
     }
 
     return allListings;
@@ -287,8 +345,7 @@ export async function fetchBestListingsForCollection(
     chain = 'ethereum',
     limitPerPage = 100,
     maxPages = 20,
-    allowedSources = null,
-    perRequestDelayMs = 0
+    allowedSources = null
 ) {
     const listings = [];
     let cursor = null;
@@ -311,7 +368,6 @@ export async function fetchBestListingsForCollection(
         }
         cursor = data?.next || null;
         pagesFetched += 1;
-        if (perRequestDelayMs) await new Promise(res => setTimeout(res, perRequestDelayMs));
     } while (cursor && pagesFetched < maxPages);
 
     // --- Dedupe to the cheapest listing per tokenId (protects against duplicates across pages) ---
@@ -338,11 +394,10 @@ export async function fetchCheapestListingsSmart(
     collectionSlug,
     apiKey,
     chain = 'ethereum',
-    allowedSources = null,
-    perRequestDelayMs = 0
+    allowedSources = null
 ) {
     try {
-        const best = await fetchBestListingsForCollection(collectionSlug, apiKey, chain, 100, 20, allowedSources, perRequestDelayMs);
+        const best = await fetchBestListingsForCollection(collectionSlug, apiKey, chain, 100, 20, allowedSources);
         if (best && best.length) return best;
     } catch (err) {
         // If unauthorized or endpoint not available, fall back silently.
@@ -350,7 +405,7 @@ export async function fetchCheapestListingsSmart(
     }
 
     // Fallback: get all listings and dedupe to cheapest per token
-    const all = await fetchAllListingsForSale(collectionSlug, apiKey, chain, 100, 20, allowedSources, 0, perRequestDelayMs);
+    const all = await fetchAllListingsForSale(collectionSlug, apiKey, chain, 100, 20, allowedSources, 0);
     const map = new Map();
     for (const l of all) {
         const tokenId = l?.protocol_data?.parameters?.offer?.[0]?.identifierOrCriteria;

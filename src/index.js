@@ -28,7 +28,97 @@ import * as etherscanApi from './api/etherscan.js';
     let bestListingsCache = null;
     let bestListingsFetchPromise = null;
 
-    async function getBestListings() {
+    // Progress bar functions
+    function createProgressBar(container, title = 'Loading...') {
+        // Remove any existing progress bar
+        container.querySelector('.progress-container')?.remove();
+        
+        const progressContainer = document.createElement('div');
+        progressContainer.className = 'progress-container';
+        progressContainer.innerHTML = `
+            <div class="progress-header">
+                <span class="progress-title">${title}</span>
+                <span class="progress-percentage">0%</span>
+            </div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill"></div>
+            </div>
+            <div class="progress-status">Starting...</div>
+        `;
+        
+        // Add styles
+        const style = document.createElement('style');
+        style.textContent = `
+            .progress-container {
+                margin: 16px 0;
+                padding: 16px;
+                background: rgba(255,255,255,0.05);
+                border-radius: 8px;
+                border: 1px solid rgba(255,255,255,0.1);
+            }
+            .progress-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+            .progress-title {
+                font-weight: 600;
+                color: #fff;
+            }
+            .progress-percentage {
+                font-size: 12px;
+                color: #aaa;
+                font-family: monospace;
+            }
+            .progress-bar-bg {
+                height: 6px;
+                background: rgba(255,255,255,0.1);
+                border-radius: 3px;
+                overflow: hidden;
+                margin-bottom: 8px;
+            }
+            .progress-bar-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #4CAF50, #81C784);
+                border-radius: 3px;
+                width: 0%;
+                transition: width 0.3s ease;
+            }
+            .progress-status {
+                font-size: 12px;
+                color: #bbb;
+                font-style: italic;
+            }
+        `;
+        if (!document.head.querySelector('#progress-bar-styles')) {
+            style.id = 'progress-bar-styles';
+            document.head.appendChild(style);
+        }
+        
+        container.appendChild(progressContainer);
+        return progressContainer;
+    }
+
+    function updateProgressBar(progressContainer, progress, status = '') {
+        if (!progressContainer) return;
+        
+        const percentage = Math.round(progress * 100);
+        const fillElement = progressContainer.querySelector('.progress-bar-fill');
+        const percentageElement = progressContainer.querySelector('.progress-percentage');
+        const statusElement = progressContainer.querySelector('.progress-status');
+        
+        if (fillElement) fillElement.style.width = `${percentage}%`;
+        if (percentageElement) percentageElement.textContent = `${percentage}%`;
+        if (statusElement && status) statusElement.textContent = status;
+    }
+
+    function removeProgressBar(container) {
+        container.querySelector('.progress-container')?.remove();
+    }
+
+    // Enhanced getBestListings with progress tracking
+    async function getBestListings(progressCallback = null) {
         if (bestListingsCache) return bestListingsCache;
         if (bestListingsFetchPromise) return bestListingsFetchPromise;
 
@@ -36,12 +126,22 @@ import * as etherscanApi from './api/etherscan.js';
         bestListingsFetchPromise = (async () => {
             // Safety: if collectionSlug hasn't been resolved yet, fetch it first
             if (!collectionSlug) {
+                if (progressCallback) progressCallback(0.05, 'Getting collection information...');
                 if (OPENSEA_CONTRACT_ADDRESS && OPENSEA_API_KEY) {
                     collectionSlug = await openSeaApi.getCollectionSlug(OPENSEA_CONTRACT_ADDRESS, OPENSEA_API_KEY);
                 } else {
                     throw new Error('OpenSea configuration missing');
                 }
             }
+
+            if (progressCallback) progressCallback(0.1, 'Starting to fetch listings...');
+
+            // Create progress callback for fetchAllListingsForSale
+            const listingsProgressCallback = (pageProgress, status) => {
+                // Map page progress to 10% - 80% of total progress
+                const totalProgress = 0.1 + (pageProgress * 0.7);
+                if (progressCallback) progressCallback(totalProgress, status);
+            };
 
             // Fetch every active order (up to ~6 500) then keep the cheapest one per token
             const raw = await openSeaApi.fetchAllListingsForSale(
@@ -52,11 +152,13 @@ import * as etherscanApi from './api/etherscan.js';
                 65,    // max pages ( ≈ 6 500 rows )
                 ALLOWED_MARKETPLACES,
                 0,     // price cluster threshold off (we'll dedupe per-token next)
-                800    // 0.8-s delay between pages to stay under 429
+                listingsProgressCallback
             );
 
+            if (progressCallback) progressCallback(0.85, 'Processing and deduplicating listings...');
+
             // De-duplicate → keep cheapest order for each tokenId
-            const map = new Map(); // tokenId -> cheapest listing
+            const map = new Map();
             for (const l of raw) {
                 const t = l?.protocol_data?.parameters?.offer?.[0]?.identifierOrCriteria;
                 if (t === undefined || t === null) continue;
@@ -71,8 +173,13 @@ import * as etherscanApi from './api/etherscan.js';
                 }
             }
 
+            if (progressCallback) progressCallback(0.95, 'Finalizing results...');
+
             const deduped = [...map.values()];
             bestListingsCache = deduped;
+            
+            if (progressCallback) progressCallback(1.0, 'Complete!');
+            
             return deduped;
         })().catch(err => {
             // Reset so we can retry later
@@ -916,7 +1023,7 @@ import * as etherscanApi from './api/etherscan.js';
         }
 
         leftSidebarTitle.textContent = title;
-        leftSidebarContent.innerHTML = '<p>Loading data...</p>';
+        leftSidebarContent.innerHTML = ''; // Clear content instead of showing basic loading text
         if (!leftSidebar.classList.contains('visible')) {
             console.log('Attempting to show left sidebar for content loading');
             leftSidebar.classList.add('visible');
@@ -924,6 +1031,7 @@ import * as etherscanApi from './api/etherscan.js';
 
         try {
             let data;
+            let progressBar;
             if (!collectionSlug) throw new Error("Collection slug not available.");
 
             // Deactivate sales view unless we're about to activate it below
@@ -932,10 +1040,16 @@ import * as etherscanApi from './api/etherscan.js';
             }
 
             // The switch block correctly handles fetching and rendering data.
-            // No erroneous updateOpenSeaData() call should be here.
             switch (contentType) {
                 case 'forSale':
-                    data = await getBestListings();
+                    progressBar = createProgressBar(leftSidebarContent, 'Loading items for sale...');
+                    
+                    const forSaleProgressCallback = (progress, status) => {
+                        updateProgressBar(progressBar, progress, status);
+                    };
+                    
+                    data = await getBestListings(forSaleProgressCallback);
+                    removeProgressBar(leftSidebarContent);
                     await renderForSaleData(data, leftSidebarContent);
 
                     // Zoom out to full view and visually focus on items currently for sale
@@ -987,21 +1101,24 @@ import * as etherscanApi from './api/etherscan.js';
                             tabsContainer.appendChild(btn);
                         });
                         tabsContainer.firstChild.classList.add('active');
-                        leftSidebarContent.innerHTML = ''; // clear loading text
                         leftSidebarContent.appendChild(tabsContainer);
                     }
 
                     // Helper to fetch + render list.
                     const loadAndRenderActivity = async (evType) => {
                         leftSidebarContent.querySelector('.activity-loading')?.remove();
-                        const loadingP = document.createElement('p');
-                        loadingP.textContent = 'Loading activity...';
-                        loadingP.className = 'activity-loading';
-                        leftSidebarContent.appendChild(loadingP);
-
-                        try {
-                            if (evType === 'listing') {
-                                const activeListings = await getBestListings();
+                        
+                        let activityProgressBar;
+                        if (evType === 'listing') {
+                            activityProgressBar = createProgressBar(leftSidebarContent, 'Loading current listings...');
+                            
+                            const listingProgressCallback = (progress, status) => {
+                                updateProgressBar(activityProgressBar, progress, status);
+                            };
+                            
+                            try {
+                                const activeListings = await getBestListings(listingProgressCallback);
+                                removeProgressBar(leftSidebarContent);
 
                                 // Remove previous list (activity-list or for-sale-list)
                                 leftSidebarContent.querySelector('.activity-list')?.remove();
@@ -1012,17 +1129,31 @@ import * as etherscanApi from './api/etherscan.js';
                                 leftSidebarContent.appendChild(listContainer);
 
                                 await renderForSaleData(activeListings, listContainer);
-                            } else {
+                            } catch (err) {
+                                console.error('Activity load error', err);
+                                removeProgressBar(leftSidebarContent);
+                                const errorP = document.createElement('p');
+                                errorP.textContent = 'Failed to load listings.';
+                                leftSidebarContent.appendChild(errorP);
+                            }
+                        } else {
+                            // For sales, offers, and all activity - these are usually single requests
+                            activityProgressBar = createProgressBar(leftSidebarContent, `Loading ${evType || 'all'} activity...`);
+                            updateProgressBar(activityProgressBar, 0.5, 'Fetching activity data...');
+                            
+                            try {
                                 const events = await openSeaApi.fetchActivity(collectionSlug, OPENSEA_API_KEY, 'ethereum', evType, 50);
                                 // Filter out collection offers (order_type === 'collection_offer')
                                 const filtered = events.filter(e => e.order_type !== 'collection_offer');
+                                removeProgressBar(leftSidebarContent);
                                 renderActivityData(filtered, leftSidebarContent);
+                            } catch (err) {
+                                console.error('Activity load error', err);
+                                removeProgressBar(leftSidebarContent);
+                                const errorP = document.createElement('p');
+                                errorP.textContent = 'Failed to load activity.';
+                                leftSidebarContent.appendChild(errorP);
                             }
-                        } catch (err) {
-                            console.error('Activity load error', err);
-                            loadingP.textContent = 'Failed to load activity.';
-                        } finally {
-                            loadingP.remove();
                         }
                     };
 
@@ -1033,16 +1164,29 @@ import * as etherscanApi from './api/etherscan.js';
                         leftSidebarContent.innerHTML = '<p>Etherscan API key missing. Please configure VITE_ETHERESCAN_API_KEY.</p>';
                         break;
                     }
+                    
+                    progressBar = createProgressBar(leftSidebarContent, 'Loading collector data...');
+                    
+                    const collectorsProgressCallback = (progress, status) => {
+                        updateProgressBar(progressBar, progress, status);
+                    };
+                    
                     // Fetch the entire transfer history to derive the current set of holders
                     data = await etherscanApi.fetchCollectors(OPENSEA_CONTRACT_ADDRESS, ETHERSCAN_API_KEY, {
                         pageSize: 1000,
-                        sort: 'desc'
+                        sort: 'desc',
+                        progressCallback: collectorsProgressCallback
                     });
+                    removeProgressBar(leftSidebarContent);
                     etherscanCollectorsCache = data; // cache for back button
                     renderCollectorsData(data, leftSidebarContent);
                     break;
                 case 'sales':
+                    progressBar = createProgressBar(leftSidebarContent, 'Loading recent sales...');
+                    updateProgressBar(progressBar, 0.5, 'Fetching sales data...');
+                    
                     data = await openSeaApi.fetchActivity(collectionSlug, OPENSEA_API_KEY, 'ethereum', 'sale', 50);
+                    removeProgressBar(leftSidebarContent);
                     renderActivityData(data, leftSidebarContent);
 
                     // Zoom out to home view and highlight sold tokens
@@ -1062,6 +1206,7 @@ import * as etherscanApi from './api/etherscan.js';
             }
         } catch (error) {
             console.error(`Error fetching OpenSea ${contentType} data:`, error);
+            removeProgressBar(leftSidebarContent);
             leftSidebarTitle.textContent = 'Error';
             leftSidebarContent.innerHTML = '<p>Failed to load data from OpenSea. Please try again later.</p>';
         }
