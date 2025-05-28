@@ -22,6 +22,7 @@ import * as etherscanApi from './api/etherscan.js';
     const ALLOWED_MARKETPLACES = ['opensea', 'blur'];
     let collectionSlug = null; // To store the fetched OpenSea collection slug
     let etherscanCollectorsCache = null; // cache collectors data
+    const TOTAL_SONGS = 5852;
     console.log('OpenSea ENV Vars:', { key: OPENSEA_API_KEY ? 'Loaded' : 'MISSING', contract: OPENSEA_CONTRACT_ADDRESS ? 'Loaded' : 'MISSING' });
 
     // In-memory cache for cheapest listings so we only fetch once per session
@@ -475,6 +476,18 @@ import * as etherscanApi from './api/etherscan.js';
     const modal = document.getElementById('songModal');
     const closeButton = modal.querySelector('.close-button');
 
+    // Bottom player elements
+    const bottomPlayer = document.getElementById('bottom-player');
+    const bottomVideoContainer = bottomPlayer.querySelector('.player-video');
+    const bottomTitleEl = bottomPlayer.querySelector('.player-title');
+    const prevBtn = document.getElementById('player-prev');
+    const playBtn = document.getElementById('player-play');
+    const nextBtn = document.getElementById('player-next');
+    const volumeInput = document.getElementById('player-volume');
+    let currentPlayingId = null;
+    let currentIframe = null;
+    let isPlaying = false;
+
     // Left Sidebar (for OpenSea data)
     const leftSidebar = document.getElementById('left-sidebar');
     const leftSidebarTitle = leftSidebar.querySelector('.left-sidebar-title');
@@ -489,9 +502,22 @@ import * as etherscanApi from './api/etherscan.js';
     const searchInput = document.getElementById('search-input');
     const forSaleCountSpan = document.getElementById('for-sale-count');
 
-    closeButton.addEventListener('click', () => (modal.style.display = 'none'));
+    function closeSongModal() {
+        modal.style.display = 'none';
+        if (currentIframe && currentIframe.parentElement) {
+            const wasPlaying = isPlaying;
+            bottomVideoContainer.innerHTML = '';
+            bottomVideoContainer.appendChild(currentIframe);
+            bottomPlayer.classList.remove('hidden');
+            if (wasPlaying) {
+                sendPlayerCommand('playVideo');
+            }
+        }
+    }
+
+    closeButton.addEventListener('click', () => closeSongModal());
     modal.addEventListener('click', e => {
-        if (e.target === modal) modal.style.display = 'none';
+        if (e.target === modal) closeSongModal();
     });
 
     if (homeViewBtn) {
@@ -505,6 +531,85 @@ import * as etherscanApi from './api/etherscan.js';
             id => displaySongDetails(id),
             q => openSearchResults(q)
         );
+    }
+
+    function sendPlayerCommand(func, args = []) {
+        if (!currentIframe) return;
+        currentIframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
+    }
+
+    window.addEventListener('message', event => {
+        if (!currentIframe || event.source !== currentIframe.contentWindow) return;
+        try {
+            const data = JSON.parse(event.data);
+            if (data.event === 'onStateChange') {
+                if (data.info === 1) {
+                    isPlaying = true;
+                    playBtn.querySelector('.material-icons').textContent = 'pause';
+                    bottomPlayer.classList.remove('hidden');
+                } else if (data.info === 2 || data.info === 0) {
+                    isPlaying = false;
+                    playBtn.querySelector('.material-icons').textContent = 'play_arrow';
+                }
+            }
+        } catch (e) {
+            /* ignore */
+        }
+    });
+
+    playBtn.addEventListener('click', () => {
+        if (!currentIframe) return;
+        if (isPlaying) {
+            sendPlayerCommand('pauseVideo');
+            isPlaying = false;
+            playBtn.querySelector('.material-icons').textContent = 'play_arrow';
+        } else {
+            sendPlayerCommand('playVideo');
+            isPlaying = true;
+            playBtn.querySelector('.material-icons').textContent = 'pause';
+            bottomPlayer.classList.remove('hidden');
+        }
+    });
+
+    volumeInput.addEventListener('input', () => {
+        const vol = parseInt(volumeInput.value, 10);
+        sendPlayerCommand('setVolume', [vol]);
+    });
+
+    prevBtn.addEventListener('click', () => {
+        if (currentPlayingId && currentPlayingId > 1) {
+            loadSongById(currentPlayingId - 1);
+        }
+    });
+
+    nextBtn.addEventListener('click', () => {
+        if (currentPlayingId && currentPlayingId < TOTAL_SONGS) {
+            loadSongById(currentPlayingId + 1);
+        }
+    });
+
+    async function loadSongById(id) {
+        try {
+            const song = await algoliaIndex.getObject(id.toString());
+            if (!song || !song.youtube_url) return;
+            const vid = getYouTubeVideoId(song.youtube_url);
+            if (!vid) return;
+            if (!currentIframe) {
+                currentIframe = document.createElement('iframe');
+                currentIframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+                currentIframe.allowFullscreen = true;
+            }
+            currentIframe.src = `https://www.youtube.com/embed/${vid}?enablejsapi=1&origin=${window.location.origin}&autoplay=1`;
+            bottomVideoContainer.innerHTML = '';
+            bottomVideoContainer.appendChild(currentIframe);
+            bottomTitleEl.textContent = song.name;
+            currentPlayingId = parseInt(song.token_id, 10);
+            bottomPlayer.classList.remove('hidden');
+            isPlaying = true;
+            playBtn.querySelector('.material-icons').textContent = 'pause';
+        } catch (err) {
+            console.error('Error loading song by ID', err);
+        }
     }
 
     function getYouTubeVideoId(url) {
@@ -543,14 +648,30 @@ import * as etherscanApi from './api/etherscan.js';
             // video
             const videoContainer = modalContent.querySelector('.video-container');
             videoContainer.innerHTML = '';
+            if (currentIframe && bottomVideoContainer.contains(currentIframe)) {
+                const wasPlaying = isPlaying;
+                videoContainer.appendChild(currentIframe);
+                bottomPlayer.classList.add('hidden');
+                if (wasPlaying) {
+                    sendPlayerCommand('playVideo');
+                }
+            }
             if (song.youtube_url) {
                 const vid = getYouTubeVideoId(song.youtube_url);
                 if (vid) {
-                    const iframe = document.createElement('iframe');
-                    iframe.src = `https://www.youtube.com/embed/${vid}`;
-                    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-                    iframe.allowFullscreen = true;
-                    videoContainer.appendChild(iframe);
+                    if (!currentIframe) {
+                        currentIframe = document.createElement('iframe');
+                        currentIframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+                        currentIframe.allowFullscreen = true;
+                    }
+                    currentIframe.src = `https://www.youtube.com/embed/${vid}?enablejsapi=1&origin=${window.location.origin}`;
+                    if (currentIframe.parentElement !== videoContainer) {
+                        videoContainer.appendChild(currentIframe);
+                    }
+                    bottomTitleEl.textContent = song.name;
+                    currentPlayingId = parseInt(song.token_id, 10);
+                    isPlaying = false;
+                    playBtn.querySelector('.material-icons').textContent = 'play_arrow';
                 }
             }
 
