@@ -1010,13 +1010,15 @@ import * as etherscanApi from './api/etherscan.js';
     `;
     document.head.appendChild(styleSheet);
 
-    viewer.addHandler('open', () => {
-        viewer.viewport.goHome(true);
-        const imageBounds = viewer.viewport.getHomeBounds();
-        if (typeof viewer.viewport.fitBounds === 'function') {
-            viewer.viewport.fitBounds(imageBounds, true);
-        }
-    });
+    if (!isEmbedMode) {
+        viewer.addHandler('open', () => {
+            viewer.viewport.goHome(true);
+            const imageBounds = viewer.viewport.getHomeBounds();
+            if (typeof viewer.viewport.fitBounds === 'function') {
+                viewer.viewport.fitBounds(imageBounds, true);
+            }
+        });
+    }
 
     // END copied logic --------------------------------------------------
 
