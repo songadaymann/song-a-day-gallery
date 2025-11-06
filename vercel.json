@@ -8,6 +8,7 @@
     }
   ],
   "routes": [
+    { "src": "/embed(?:/)?$", "dest": "/dist/index.html" },
     { "src": "/(.*)", "dest": "/dist/$1" }
   ]
-} 
+}

@@ -395,6 +395,22 @@
         /* .controls-bar{transition:opacity 0.2s ease;} */
         .material-icons{font-size:24px;}
 
+        body.embed-mode {
+            background-color: #000;
+        }
+        body.embed-mode #top-bar,
+        body.embed-mode #left-sidebar,
+        body.embed-mode #right-sidebar,
+        body.embed-mode #osd-controls-container {
+            display: none !important;
+        }
+        body.embed-mode #app-container,
+        body.embed-mode #main-content-area,
+        body.embed-mode #viewer-container {
+            flex: 1;
+            height: 100%;
+        }
+
     </style>
 </head>
 <body>

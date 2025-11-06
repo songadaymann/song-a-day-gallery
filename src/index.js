@@ -20,6 +20,52 @@ import * as etherscanApi from './api/etherscan.js';
     const OPENSEA_CONTRACT_ADDRESS = import.meta.env.VITE_OPENSEA_CONTRACT_ADDRESS;
     const ETHERSCAN_API_KEY = import.meta.env.VITE_ETHERESCAN_API_KEY || import.meta.env.VITE_ETHERESCAN_API_KEY;
     const ALLOWED_MARKETPLACES = ['opensea', 'blur'];
+
+    const pageUrl = new URL(window.location.href);
+    const searchParams = pageUrl.searchParams;
+    const normalizedPath = pageUrl.pathname.replace(/\/+$/, '').toLowerCase();
+    const embedParam = searchParams.get('embed');
+    const embedParamEnabled = (() => {
+        if (embedParam === null) return searchParams.has('embed');
+        if (embedParam === '') return true;
+        const normalized = embedParam.toLowerCase();
+        if (['1', 'true', 'yes'].includes(normalized)) return true;
+        if (['0', 'false', 'no'].includes(normalized)) return false;
+        return true;
+    })();
+    const isEmbedMode =
+        embedParamEnabled ||
+        normalizedPath === '/embed' ||
+        normalizedPath === '/embed.html';
+
+    if (isEmbedMode) {
+        document.body?.classList.add('embed-mode');
+    }
+
+    function getNumericParam(name) {
+        const value = searchParams.get(name);
+        if (value === null || value === '') return null;
+        const parsed = parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    const rawBounds = searchParams.get('bounds');
+    let initialBounds = null;
+    if (rawBounds) {
+        const parts = rawBounds.split(',').map(part => parseFloat(part.trim()));
+        if (parts.length === 4 && parts.every(Number.isFinite)) {
+            initialBounds = parts;
+        }
+    }
+
+    const initialViewportParams = {
+        zoom: getNumericParam('zoom'),
+        x: getNumericParam('x'),
+        y: getNumericParam('y'),
+        minZoom: getNumericParam('minZoom'),
+        maxZoom: getNumericParam('maxZoom'),
+        bounds: initialBounds
+    };
     let collectionSlug = null; // To store the fetched OpenSea collection slug
     let etherscanCollectorsCache = null; // cache collectors data
     console.log('OpenSea ENV Vars:', { key: OPENSEA_API_KEY ? 'Loaded' : 'MISSING', contract: OPENSEA_CONTRACT_ADDRESS ? 'Loaded' : 'MISSING' });
@@ -217,6 +263,37 @@ import * as etherscanApi from './api/etherscan.js';
             getTileUrl: function (level, x, y) {
                 return `https://songadaygallery.blob.core.windows.net/dzi/level_${level}/tiles/${x}_${y}.jpg`;
             }
+        }
+    });
+
+    viewer.addOnceHandler('open', () => {
+        if (initialViewportParams.minZoom !== null) {
+            viewer.viewport.minZoomLevel = initialViewportParams.minZoom;
+        }
+        if (initialViewportParams.maxZoom !== null) {
+            viewer.viewport.maxZoomLevel = initialViewportParams.maxZoom;
+        }
+
+        if (initialViewportParams.bounds) {
+            const [bx, by, bw, bh] = initialViewportParams.bounds;
+            const boundsRect = new OpenSeadragon.Rect(bx, by, bw, bh);
+            viewer.viewport.fitBounds(boundsRect, true);
+            return;
+        }
+
+        const hasZoom = initialViewportParams.zoom !== null;
+        const hasPosition = initialViewportParams.x !== null && initialViewportParams.y !== null;
+        if (!hasZoom && !hasPosition) return;
+
+        const targetPoint = hasPosition
+            ? new OpenSeadragon.Point(initialViewportParams.x, initialViewportParams.y)
+            : viewer.viewport.getCenter();
+
+        if (hasZoom) {
+            viewer.viewport.zoomTo(initialViewportParams.zoom, targetPoint, true);
+        }
+        if (hasPosition) {
+            viewer.viewport.panTo(targetPoint, true);
         }
     });
 
@@ -515,6 +592,7 @@ import * as etherscanApi from './api/etherscan.js';
     }
 
     async function displaySongDetails(songId) {
+        if (isEmbedMode) return;
         try {
             const song = await algoliaIndex.getObject(songId.toString());
             if (!song) {
@@ -687,11 +765,13 @@ import * as etherscanApi from './api/etherscan.js';
     }
 
     // click handler
-    viewer.addHandler('canvas-click', function (event) {
-        if (!event.quick) return;
-        const song = getSongFromPoint(event.position);
-        if (song) displaySongDetails(song.id);
-    });
+    if (!isEmbedMode) {
+        viewer.addHandler('canvas-click', function (event) {
+            if (!event.quick) return;
+            const song = getSongFromPoint(event.position);
+            if (song) displaySongDetails(song.id);
+        });
+    }
 
     // Filtering logic (unchanged)
     let filterOverlays = new Map();

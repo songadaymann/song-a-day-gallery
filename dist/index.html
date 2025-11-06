@@ -395,8 +395,24 @@
         /* .controls-bar{transition:opacity 0.2s ease;} */
         .material-icons{font-size:24px;}
 
+        body.embed-mode {
+            background-color: #000;
+        }
+        body.embed-mode #top-bar,
+        body.embed-mode #left-sidebar,
+        body.embed-mode #right-sidebar,
+        body.embed-mode #osd-controls-container {
+            display: none !important;
+        }
+        body.embed-mode #app-container,
+        body.embed-mode #main-content-area,
+        body.embed-mode #viewer-container {
+            flex: 1;
+            height: 100%;
+        }
+
     </style>
-  <script type="module" crossorigin src="/assets/index-CaNl2FVC.js"></script>
+  <script type="module" crossorigin src="/assets/index-jSakKzBj.js"></script>
 </head>
 <body>
     <div id="app-container">
