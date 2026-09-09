@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && node scripts/postbuild.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "preview:cloudflare": "npx -y wrangler@4.130.0 dev",
+    "deploy:cloudflare": "npx -y wrangler@4.130.0 deploy"
   },
   "devDependencies": {
     "dotenv": "^16.5.0",
